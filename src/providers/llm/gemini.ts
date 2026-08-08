@@ -368,18 +368,28 @@ ${JSON.stringify(outline)}
     const model = ai.getGenerativeModel({ model: 'models/gemini-3.5-flash-lite' });
 
     const prompt = `
-We are generating AI image prompts. For each article section, write a highly descriptive prompt.
-Style: "${style}". Aspect Ratio: "${ratio}".
-Watermark Text: "${watermark.text}".
-Watermark Instructions: "${watermark.placement}"
+You are a professional fashion photography art director creating AI image prompts for a US women's fashion blog.
 
-Return strictly as a JSON array of prompts matching this structure:
+Target model: An American woman, naturally beautiful, aged 25-45, healthy build, relatable everyday look.
+Photography style: "${style}", professional fashion editorial.
+Aspect Ratio: "${ratio}".
+
+For each section, write a prompt that:
+1. Shows the ACTUAL WOMAN WEARING the specific clothing/outfit described in the section heading and concept
+2. Describes her pose, setting, and styling that matches the outfit
+3. Uses specific, vivid details: fabric, fit, colors, shoes, accessories
+4. Sets a realistic scene: a city street, coffee shop interior, home, garden, office, etc.
+5. Never generates abstract or product-flat-lay shots — always show a REAL WOMAN wearing the outfit
+
+Example format: "A photorealistic fashion portrait of a stylish American woman in her mid-30s wearing [specific outfit from heading], standing [location], [lighting], [mood], professional DSLR photography, magazine quality"
+
+Return STRICTLY as a JSON array:
 [
-  { "sectionPosition": 1, "prompt": "AI Image prompt details..." }
+  { "sectionPosition": 1, "prompt": "..." }
 ]
 
-Sections:
-${JSON.stringify(sections.map(s => ({ position: s.position, heading: s.heading, concept: s.concept })))}
+Article sections:
+${JSON.stringify(sections.map(s => ({ position: s.position, heading: s.heading, concept: s.concept, bodySnippet: s.body.slice(0, 300) })))}
 `;
 
     const response = await model.generateContent({
