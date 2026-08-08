@@ -12,7 +12,7 @@ export async function GET(
 
     const task = await prisma.articleTask.findUnique({
       where: { id: taskId },
-      include: { sections: { orderBy: { position: 'asc' } } }
+      include: { articleSections: { orderBy: { position: 'asc' } } }
     });
 
     if (!task) return NextResponse.json({ error: 'Task not found' }, { status: 404 });
@@ -29,7 +29,7 @@ export async function GET(
 
     // Determine which sections need images
     const sectionsToProcess = [];
-    for (const section of task.sections) {
+    for (const section of task.articleSections) {
       if (!section.imagePrompt) continue;
       
       const existingValid = await prisma.imageGeneration.findFirst({
@@ -50,8 +50,8 @@ export async function GET(
       credentials: { accountId, apiToken },
       options: { aspectRatio: task.imageRatio || '16:9', style: task.imageStyle || 'photorealistic' },
       sections: sectionsToProcess,
-      total: task.sections.filter(s => s.imagePrompt).length,
-      done: task.sections.filter(s => s.imagePrompt).length - sectionsToProcess.length
+      total: task.articleSections.filter(s => s.imagePrompt).length,
+      done: task.articleSections.filter(s => s.imagePrompt).length - sectionsToProcess.length
     });
 
   } catch (error: any) {
