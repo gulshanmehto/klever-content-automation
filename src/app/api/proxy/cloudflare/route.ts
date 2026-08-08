@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { buildFluxFashionPrompt, FLUX_NEGATIVE_PROMPT, getRatioDimensions } from '@/providers/image/fashion-prompt';
+import { buildFluxFashionPrompt, getRatioDimensions } from '@/providers/image/fashion-prompt';
 
 // Using Node.js runtime for Buffer support and longer execution time
 export const runtime = 'nodejs';
@@ -44,11 +44,7 @@ export async function POST(request: NextRequest) {
         },
         body: JSON.stringify({
           prompt: guardedPrompt,
-          negative_prompt: FLUX_NEGATIVE_PROMPT,
-          num_steps: 8,
-          guidance: 7.5,
-          width: dims.width,
-          height: dims.height,
+          steps: 8,
         }),
       }
     );

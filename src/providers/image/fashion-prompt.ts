@@ -45,14 +45,6 @@ const PHOTO_SUFFIX =
   'professional colour grading, magazine editorial quality, ' +
   'highly photorealistic skin texture, 4K ultra-detail, no watermarks, no text overlays.';
 
-/** Hard negative-prompt string to append to every Flux call (for models that accept it) */
-export const FLUX_NEGATIVE_PROMPT =
-  'deformed hands, extra fingers, missing fingers, fused fingers, ' +
-  'malformed limbs, bad anatomy, distorted face, asymmetrical face, ' +
-  'cross-eyed, mutation, cloned face, poorly drawn face, ugly, blurry, ' +
-  'low resolution, pixelated, cartoon, anime, illustration, painting, ' +
-  'sketch, CGI render, plastic skin, wax figure, mannequin, nude, nsfw, ' +
-  'watermark, text overlay, logo, signature, cropped, out of frame.';
 
 /**
  * Background scene fragments keyed loosely by article style.

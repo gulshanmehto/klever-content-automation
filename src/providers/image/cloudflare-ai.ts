@@ -1,6 +1,6 @@
 import { prisma } from '@/lib/db';
 import type { ImageProvider, ImageOptions, ImageResult } from './types';
-import { buildFluxFashionPrompt, FLUX_NEGATIVE_PROMPT } from './fashion-prompt';
+import { buildFluxFashionPrompt } from './fashion-prompt';
 
 export class CloudflareWorkersAIImageProvider implements ImageProvider {
   private async getCredentials(): Promise<{ accountId: string; apiToken: string }> {
@@ -66,9 +66,7 @@ export class CloudflareWorkersAIImageProvider implements ImageProvider {
           },
           body: JSON.stringify({
             prompt: guardedPrompt,
-            negative_prompt: FLUX_NEGATIVE_PROMPT,
-            num_steps: 8,    // More steps = more micro-detail for fashion clothing
-            guidance: 7.5,   // Strong adherence to prompt for accurate outfits
+            steps: 8,
           }),
         }
       );
