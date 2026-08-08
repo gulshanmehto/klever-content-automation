@@ -10,7 +10,7 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: 'Missing required parameters' }, { status: 400 });
     }
 
-    const model = '@cf/stabilityai/stable-diffusion-xl-base-1.0';
+    const model = '@cf/bytedance/stable-diffusion-xl-lightning';
 
     const response = await fetch(
       `https://api.cloudflare.com/client/v4/accounts/${accountId}/ai/run/${model}`,
@@ -20,7 +20,10 @@ export async function POST(request: NextRequest) {
           'Authorization': `Bearer ${apiToken}`,
           'Content-Type': 'application/json',
         },
-        body: JSON.stringify({ prompt }),
+        body: JSON.stringify({ 
+          prompt,
+          negative_prompt: "ugly, deformed, mutated, bad anatomy, bad hands, missing fingers, extra digits, extra limbs, cross-eyed, poorly drawn face, blurry, low resolution, bad proportions, unnatural features, bad lighting, abstract" 
+        }),
       }
     );
 

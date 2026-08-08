@@ -138,6 +138,37 @@ export async function POST(
       return NextResponse.json({ success: true });
     }
 
+    // ─── ACTION: FINISH_IMAGES ───
+    if (action === 'FINISH_IMAGES') {
+      await prisma.articleTask.update({
+        where: { id: taskId },
+        data: {
+          currentStage: 'QUALITY_CHECK',
+          progressPercentage: 70,
+        },
+      });
+
+      await prisma.jobQueue.create({
+        data: {
+          taskId,
+          jobType: 'PIPELINE_STEP',
+          step: 'QUALITY_CHECK',
+          payload: JSON.stringify({ taskId }),
+          status: 'PENDING',
+        },
+      });
+
+      await prisma.taskLog.create({
+        data: {
+          articleTaskId: taskId,
+          eventType: 'IMAGES_COMPLETED',
+          message: 'All images generated and approved. Advancing to Quality Check.',
+        },
+      });
+
+      return NextResponse.json({ success: true });
+    }
+
     return NextResponse.json({ error: 'Invalid action' }, { status: 400 });
   } catch (error: any) {
     console.error('Task Action API Error:', error);

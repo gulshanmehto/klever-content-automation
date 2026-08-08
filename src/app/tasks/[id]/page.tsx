@@ -186,7 +186,11 @@ export default function TaskDetailPage() {
         if (sections.length === 0) {
            // All done! Advance task.
            setClientGenerationStatus('All images generated. Advancing...');
-           await fetch(`/api/tasks/${taskId}/approve`, { method: 'POST' });
+           await fetch(`/api/tasks/${taskId}/action`, { 
+             method: 'POST',
+             headers: { 'Content-Type': 'application/json' },
+             body: JSON.stringify({ action: 'FINISH_IMAGES' })
+           });
            fetchTask();
            return;
         }
@@ -871,7 +875,11 @@ function ImagesTab({ task, onRefresh }: { task: TaskDetail; onRefresh: () => voi
     setRetryingAll(true);
     try {
       // Set stage to IMAGE_QC and execute step
-      const res = await fetch(`/api/tasks/${task.id}/approve`, { method: 'POST' });
+      const res = await fetch(`/api/tasks/${task.id}/action`, { 
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ action: 'FINISH_IMAGES' })
+      });
       if (res.ok) {
         onRefresh();
       }

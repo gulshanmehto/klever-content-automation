@@ -49,7 +49,7 @@ export class CloudflareWorkersAIImageProvider implements ImageProvider {
 
     try {
       const { accountId, apiToken } = await this.getCredentials();
-      const model = '@cf/stabilityai/stable-diffusion-xl-base-1.0';
+      const model = '@cf/bytedance/stable-diffusion-xl-lightning';
 
       const response = await fetch(
         `https://api.cloudflare.com/client/v4/accounts/${accountId}/ai/run/${model}`,
