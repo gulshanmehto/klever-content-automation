@@ -123,6 +123,7 @@ export default function TaskDetailPage() {
   const [loading, setLoading] = useState(true);
   const [activeTab, setActiveTab] = useState('overview');
   const [approving, setApproving] = useState(false);
+  const [clientGenerationStatus, setClientGenerationStatus] = useState<string | null>(null);
 
   const fetchTask = useCallback(async () => {
     try {
@@ -146,7 +147,8 @@ export default function TaskDetailPage() {
     const inProgressStages = [
       'CREATED', 'FETCHING_COMPETITORS', 'ANALYZING_COMPETITORS', 'EXTRACTING_IDEAS',
       'DEDUPLICATING', 'BUILDING_OUTLINE', 'WRITING_ARTICLE',
-      'GENERATING_IMAGES', 'IMAGE_QC', 'SAVING_TO_DRIVE', 'UPLOADING_TO_WORDPRESS',
+      // GENERATING_IMAGES is omitted because it is handled by the client orchestration loop below
+      'IMAGE_QC', 'SAVING_TO_DRIVE', 'UPLOADING_TO_WORDPRESS',
     ];
     if (inProgressStages.includes(task.currentStage)) {
       const interval = setInterval(async () => {
@@ -158,6 +160,101 @@ export default function TaskDetailPage() {
       return () => clearInterval(interval);
     }
   }, [task?.currentStage, fetchTask, task]);
+
+  // ─── Client-Side Image Generation Orchestration ───
+  useEffect(() => {
+    if (!task || task.currentStage !== 'GENERATING_IMAGES') {
+      setClientGenerationStatus(null);
+      return;
+    }
+
+    let isCancelled = false;
+
+    const processImagesClientSide = async () => {
+      try {
+        setClientGenerationStatus('Initializing generation...');
+        // 1. Fetch pending sections and credentials
+        const qRes = await fetch(`/api/tasks/${taskId}/images/queue`);
+        const queueData = await qRes.json();
+
+        if (!qRes.ok || queueData.error) {
+           setClientGenerationStatus(`Error: ${queueData.error || 'Failed to fetch queue'}`);
+           return;
+        }
+
+        const { credentials, sections } = queueData;
+        if (sections.length === 0) {
+           // All done! Advance task.
+           setClientGenerationStatus('All images generated. Advancing...');
+           await fetch(`/api/tasks/${taskId}/approve`, { method: 'POST' });
+           fetchTask();
+           return;
+        }
+
+        // 2. Loop through sections and process via Edge proxy
+        let doneCount = queueData.done || 0;
+        const totalCount = queueData.total || 1;
+
+        for (let i = 0; i < sections.length; i++) {
+          if (isCancelled) return;
+          const section = sections[i];
+          setClientGenerationStatus(`Generating image ${doneCount + 1} of ${totalCount}: ${section.heading}...`);
+
+          try {
+            const edgeRes = await fetch('/api/proxy/cloudflare', {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({
+                prompt: section.prompt,
+                accountId: credentials.accountId,
+                apiToken: credentials.apiToken,
+              }),
+            });
+            const edgeData = await edgeRes.json();
+
+            // Save result (success or error)
+            await fetch(`/api/tasks/${taskId}/images/save`, {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({
+                sectionId: section.id,
+                prompt: section.prompt,
+                provider: edgeData.provider,
+                model: edgeData.model,
+                mimeType: edgeData.mimeType,
+                imageBase64: edgeData.imageBase64,
+                error: edgeData.error || (!edgeRes.ok ? 'Edge Proxy Failed' : null),
+              })
+            });
+          } catch (err: any) {
+             // Save fatal error
+             await fetch(`/api/tasks/${taskId}/images/save`, {
+               method: 'POST',
+               headers: { 'Content-Type': 'application/json' },
+               body: JSON.stringify({ sectionId: section.id, prompt: section.prompt, error: err.message })
+             });
+          }
+          doneCount++;
+          // Fetch task immediately to update progress bar visually
+          fetchTask();
+        }
+
+        // Loop finished, all done!
+        if (isCancelled) return;
+        setClientGenerationStatus('Generation complete. Advancing...');
+        await fetch(`/api/tasks/${taskId}/approve`, { method: 'POST' });
+        fetchTask();
+
+      } catch (err: any) {
+         setClientGenerationStatus(`Fatal orchestration error: ${err.message}`);
+      }
+    };
+
+    // Give it a tiny delay so the UI can render the loading state first
+    setTimeout(processImagesClientSide, 500);
+
+    return () => { isCancelled = true; };
+  }, [task?.currentStage, taskId, fetchTask]);
 
 
   const handleApprove = async () => {
@@ -386,6 +483,13 @@ export default function TaskDetailPage() {
           );
         })}
       </div>
+
+      {clientGenerationStatus && task.currentStage === 'GENERATING_IMAGES' && (
+        <div style={{ backgroundColor: 'var(--primary-light)', color: 'var(--primary-dark)', padding: '12px 16px', borderRadius: '8px', marginBottom: '20px', display: 'flex', alignItems: 'center', gap: '8px', border: '1px solid var(--primary)' }}>
+          <Loader size={16} style={{ animation: 'spin 1s linear infinite' }} />
+          <span style={{ fontSize: '14px', fontWeight: 500 }}>{clientGenerationStatus}</span>
+        </div>
+      )}
 
       {/* Tab Content */}
       <div>
