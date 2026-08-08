@@ -553,7 +553,7 @@ export class TaskOrchestrator {
       await prisma.imageGeneration.create({
         data: {
           articleSectionId: pendingSection.id,
-          prompt: pendingSection.imagePrompt!,
+          prompt: pendingSection.imagePrompt || 'No prompt',
           qcStatus: 'FAILED',
           error: errMsg,
           generationAttempt: 1,
