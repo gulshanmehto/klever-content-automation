@@ -24,12 +24,17 @@ export function getLLMProvider(): LLMProvider {
   return llmProvider;
 }
 
-export function getImageProvider(): ImageProvider {
-  if (!imageProvider) {
-    // If Cloudflare config variables are active, switch over to Workers AI image engine dynamically
-    if (process.env.CLOUDFLARE_API_TOKEN) {
+export async function getImageProvider(): Promise<ImageProvider> {
+  const { prisma } = await import('@/lib/db');
+  const apiTokenSetting = await prisma.setting.findUnique({ where: { key: 'cloudflare_api_token' } });
+
+  // Use Cloudflare if token is in DB or ENV, otherwise fallback
+  if (process.env.CLOUDFLARE_API_TOKEN || apiTokenSetting?.value) {
+    if (!imageProvider || imageProvider.constructor.name !== 'CloudflareWorkersAIImageProvider') {
       imageProvider = new CloudflareWorkersAIImageProvider();
-    } else {
+    }
+  } else {
+    if (!imageProvider || imageProvider.constructor.name !== 'GeminiImagenProvider') {
       imageProvider = new GeminiImagenProvider();
     }
   }
