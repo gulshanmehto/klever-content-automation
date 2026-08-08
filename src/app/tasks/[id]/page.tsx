@@ -140,7 +140,7 @@ export default function TaskDetailPage() {
     fetchTask();
   }, [fetchTask]);
 
-  // Poll for updates when task is in progress
+  // Poll for updates + kick the serverless job worker while task is active
   useEffect(() => {
     if (!task) return;
     const inProgressStages = [
@@ -149,10 +149,16 @@ export default function TaskDetailPage() {
       'GENERATING_IMAGES', 'IMAGE_QC', 'SAVING_TO_DRIVE', 'UPLOADING_TO_WORDPRESS',
     ];
     if (inProgressStages.includes(task.currentStage)) {
-      const interval = setInterval(fetchTask, 3000);
+      const interval = setInterval(async () => {
+        // Kick the serverless job worker so it processes the next pipeline step
+        fetch('/api/jobs/process').catch(() => {});
+        // Then refresh our task data
+        await fetchTask();
+      }, 3000);
       return () => clearInterval(interval);
     }
   }, [task?.currentStage, fetchTask, task]);
+
 
   const handleApprove = async () => {
     setApproving(true);
