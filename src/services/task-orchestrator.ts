@@ -473,8 +473,6 @@ export class TaskOrchestrator {
 
   // ─── Step 8: Generate Images ───────────────────────────────
   private async generateImages(): Promise<string> {
-    await this.log('STAGE_START', 'Starting image generation');
-
     const sections = await prisma.articleSection.findMany({
       where: { articleTaskId: this.taskId },
       orderBy: { position: 'asc' },
@@ -483,84 +481,98 @@ export class TaskOrchestrator {
     const imageProvider = await this.getImage();
     const task = await prisma.articleTask.findUnique({ where: { id: this.taskId } });
 
+    // Find the FIRST section that needs an image generated
+    let pendingSection = null;
+    let doneCount = 0;
+
     for (const section of sections) {
       if (!section.imagePrompt) continue;
 
-      // Check if already has a passing image (idempotency)
-      const existingPassed = await prisma.imageGeneration.findFirst({
-        where: { articleSectionId: section.id, qcStatus: 'PASSED' },
+      const existingValid = await prisma.imageGeneration.findFirst({
+        where: { articleSectionId: section.id, qcStatus: { in: ['GENERATED', 'PASSED', 'NEEDS_MANUAL_REVIEW'] } },
       });
-      if (existingPassed) continue;
 
-      try {
-        const result = await imageProvider.generateImage(section.imagePrompt, {
-          aspectRatio: task?.imageRatio || '16:9',
-          style: task?.imageStyle || 'photorealistic',
-        });
-
-        // Write generated image to public directory (Try-catch fallback for Serverless platforms like Vercel)
-        let webPath = '';
-        try {
-          const fs = require('fs');
-          const path = require('path');
-          const publicDir = path.join(process.cwd(), 'public', 'images');
-          if (!fs.existsSync(publicDir)) {
-            fs.mkdirSync(publicDir, { recursive: true });
-          }
-          const filename = `${section.id}-${Date.now()}.jpg`;
-          const localFilePath = path.join(publicDir, filename);
-          fs.writeFileSync(localFilePath, Buffer.from(result.imageBase64, 'base64'));
-          webPath = `/images/${filename}`;
-        } catch (e: any) {
-          console.warn('Local disk image writing bypassed (serverless environment):', e.message);
-          // If disk is read-only, we store it inline using base64 src fallback on frontend
-          webPath = `data:${result.mimeType};base64,${result.imageBase64}`;
-        }
-
-        await prisma.imageGeneration.create({
-          data: {
-            articleSectionId: section.id,
-            provider: result.provider,
-            model: result.model,
-            prompt: section.imagePrompt,
-            localPath: webPath,
-            mimeType: result.mimeType,
-            qcStatus: 'GENERATED',
-            generationAttempt: 1,
-          },
-        });
-
-        await this.log('IMAGE_GENERATED', `Image generated for section ${section.position}: ${section.heading}`);
-
-        // Update progress
-        const total = sections.length;
-        const done = await prisma.imageGeneration.count({
-          where: {
-            articleSection: { articleTaskId: this.taskId },
-            qcStatus: { in: ['GENERATED', 'PASSED'] },
-          },
-        });
-        const progress = 58 + Math.floor((done / total) * 20);
-        await prisma.articleTask.update({
-          where: { id: this.taskId },
-          data: { progressPercentage: progress },
-        });
-      } catch (error) {
-        const errMsg = error instanceof Error ? error.message : 'Image generation error';
-        await prisma.imageGeneration.create({
-          data: {
-            articleSectionId: section.id,
-            prompt: section.imagePrompt,
-            qcStatus: 'FAILED',
-            error: errMsg,
-            generationAttempt: 1,
-          },
-        });
-        await this.log('IMAGE_FAILED', `Image generation failed for section ${section.position}: ${errMsg}`);
+      if (existingValid) {
+        doneCount++;
+      } else if (!pendingSection) {
+        pendingSection = section; // The next one to process
       }
     }
 
-    return 'IMAGE_QC';
+    // If all sections have valid images, move to next stage
+    if (!pendingSection) {
+      await this.log('STAGE_COMPLETE', 'All images generated successfully');
+      return 'IMAGE_QC';
+    }
+
+    await this.log('STAGE_START', `Generating image for section ${pendingSection.position}: ${pendingSection.heading}`);
+
+    try {
+      const result = await imageProvider.generateImage(pendingSection.imagePrompt!, {
+        aspectRatio: task?.imageRatio || '16:9',
+        style: task?.imageStyle || 'photorealistic',
+      });
+
+      // Write generated image to public directory (Try-catch fallback for Serverless platforms like Vercel)
+      let webPath = '';
+      try {
+        const fs = require('fs');
+        const path = require('path');
+        const publicDir = path.join(process.cwd(), 'public', 'images');
+        if (!fs.existsSync(publicDir)) {
+          fs.mkdirSync(publicDir, { recursive: true });
+        }
+        const filename = `${pendingSection.id}-${Date.now()}.jpg`;
+        const localFilePath = path.join(publicDir, filename);
+        fs.writeFileSync(localFilePath, Buffer.from(result.imageBase64, 'base64'));
+        webPath = `/images/${filename}`;
+      } catch (e: any) {
+        console.warn('Local disk image writing bypassed (serverless environment):', e.message);
+        // If disk is read-only, we store it inline using base64 src fallback on frontend
+        webPath = `data:${result.mimeType};base64,${result.imageBase64}`;
+      }
+
+      await prisma.imageGeneration.create({
+        data: {
+          articleSectionId: pendingSection.id,
+          provider: result.provider,
+          model: result.model,
+          prompt: pendingSection.imagePrompt,
+          localPath: webPath,
+          mimeType: result.mimeType,
+          qcStatus: 'GENERATED',
+          generationAttempt: 1,
+        },
+      });
+
+      await this.log('IMAGE_GENERATED', `Image generated for section ${pendingSection.position}`);
+      doneCount++;
+
+    } catch (error) {
+      const errMsg = error instanceof Error ? error.message : 'Image generation error';
+      await prisma.imageGeneration.create({
+        data: {
+          articleSectionId: pendingSection.id,
+          prompt: pendingSection.imagePrompt!,
+          qcStatus: 'FAILED',
+          error: errMsg,
+          generationAttempt: 1,
+        },
+      });
+      await this.log('IMAGE_FAILED', `Image generation failed for section ${pendingSection.position}: ${errMsg}`);
+      doneCount++; // Increment so we don't get stuck in infinite loop on failure
+    }
+
+    // Update progress
+    const total = sections.filter(s => s.imagePrompt).length || 1;
+    const progress = 58 + Math.floor((doneCount / total) * 20);
+    await prisma.articleTask.update({
+      where: { id: this.taskId },
+      data: { progressPercentage: Math.min(progress, 78) },
+    });
+
+    // Return GENERATING_IMAGES so the Vercel job processor will invoke us again for the next image in a fresh invocation
+    return 'GENERATING_IMAGES';
   }
 
   // ─── Step 9: Image Quality Check ───────────────────────────
