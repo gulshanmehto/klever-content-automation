@@ -537,7 +537,7 @@ export class TaskOrchestrator {
           articleSectionId: pendingSection.id,
           provider: result.provider,
           model: result.model,
-          prompt: pendingSection.imagePrompt,
+          prompt: pendingSection.imagePrompt || 'No prompt',
           localPath: webPath,
           mimeType: result.mimeType,
           qcStatus: 'GENERATED',
