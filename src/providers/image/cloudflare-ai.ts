@@ -63,6 +63,7 @@ export class CloudflareWorkersAIImageProvider implements ImageProvider {
             prompt: prompt,
             num_steps: 20,
             guidance_scale: 7.5,
+            negative_prompt: "ugly, deformed, mutated, bad anatomy, bad hands, missing fingers, extra digits, extra limbs, cross-eyed, poorly drawn face, blurry, low resolution, bad proportions, unnatural features, bad lighting, abstract",
           }),
         }
       );

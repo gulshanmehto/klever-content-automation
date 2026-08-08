@@ -369,19 +369,22 @@ ${JSON.stringify(outline)}
 
     const prompt = `
 You are a professional fashion photography art director creating AI image prompts for a US women's fashion blog.
+Your job is to translate the article's concept into a HIGHLY SPECIFIC, photorealistic image prompt.
 
-Target model: An American woman, naturally beautiful, aged 25-45, healthy build, relatable everyday look.
-Photography style: "${style}", professional fashion editorial.
+CRITICAL RULES FOR OUTFIT DESCRIPTIONS:
+- DO NOT use abstract article topics (e.g., NEVER say "strapless dress ideas").
+- INSTEAD, invent a specific, styled outfit (e.g., "a white linen strapless midi dress paired with light blue vintage denim jeans and brown leather sandals").
+- Detail the fabric, color, fit, and accessories.
+
+CRITICAL RULES FOR THE MODEL & ANATOMY:
+- Target model: An American woman, naturally beautiful, aged 25-45, healthy build, relatable everyday look (like a Pinterest fashion blogger).
+- Describe her face, hair, and pose clearly to ensure the AI generates correct anatomy.
+- Include phrases like: "perfectly symmetrical face", "detailed natural eyes", "correct anatomy", "perfectly formed hands with 5 fingers".
+
+Photography style: "${style}", bright, candid street style or clean indoor lifestyle, full-body or 3/4 length shot, magazine quality, DSLR.
 Aspect Ratio: "${ratio}".
 
-For each section, write a prompt that:
-1. Shows the ACTUAL WOMAN WEARING the specific clothing/outfit described in the section heading and concept
-2. Describes her pose, setting, and styling that matches the outfit
-3. Uses specific, vivid details: fabric, fit, colors, shoes, accessories
-4. Sets a realistic scene: a city street, coffee shop interior, home, garden, office, etc.
-5. Never generates abstract or product-flat-lay shots — always show a REAL WOMAN wearing the outfit
-
-Example format: "A photorealistic fashion portrait of a stylish American woman in her mid-30s wearing [specific outfit from heading], standing [location], [lighting], [mood], professional DSLR photography, magazine quality"
+Example format: "A photorealistic fashion blogger portrait of a beautiful American woman in her mid-30s wearing a crisp white linen button-down shirt tucked into high-waisted distressed denim shorts, white sneakers, tortoiseshell sunglasses. She is walking down a sunny city sidewalk. Perfectly symmetrical face, detailed eyes, correct anatomy, perfect hands. ${style} photography, 85mm lens, natural lighting."
 
 Return STRICTLY as a JSON array:
 [
