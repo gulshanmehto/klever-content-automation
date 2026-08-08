@@ -110,3 +110,18 @@ export async function PATCH(
     return NextResponse.json({ error: 'Failed to update website' }, { status: 500 });
   }
 }
+
+// ─── DELETE /api/websites/[id] ────────────────────────────────
+export async function DELETE(
+  request: NextRequest,
+  { params }: { params: Promise<{ id: string }> }
+) {
+  try {
+    const { id } = await params;
+    await prisma.website.delete({ where: { id } });
+    return NextResponse.json({ success: true });
+  } catch (error) {
+    console.error('DELETE /api/websites/[id] error:', error);
+    return NextResponse.json({ error: 'Failed to delete website' }, { status: 500 });
+  }
+}
