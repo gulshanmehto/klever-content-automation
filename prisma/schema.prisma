@@ -1,0 +1,249 @@
+// Prisma schema for AI Article Production & WordPress Draft Automation Tool
+// Database: SQLite (file-based, Hostinger shared hosting compatible)
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider  = "postgresql"
+  url       = env("DATABASE_URL")
+  directUrl = env("DIRECT_URL")
+}
+
+// ─── Authentication ──────────────────────────────────────────────
+
+model User {
+  id           String   @id @default(cuid())
+  email        String   @unique
+  passwordHash String
+  name         String?
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+}
+
+// ─── Website / Project Configuration ─────────────────────────────
+
+model Website {
+  id                     String   @id @default(cuid())
+  name                   String
+  domain                 String
+  wpBaseUrl              String   @default("")
+  wpUsernameEncrypted    String   @default("")
+  wpAppPasswordEncrypted String   @default("")
+  driveParentFolderId    String?
+  targetCountry          String   @default("US")
+  targetAudience         String   @default("general")
+  defaultTone            String   @default("informative")
+  defaultCategory        String?
+  defaultImageStyle      String   @default("photorealistic")
+  defaultImageRatio      String   @default("16:9")
+  watermarkText          String   @default("")
+  watermarkPlacement     String   @default("At the bottom footer of the image, add a clean white rectangular box with a thin black border. Center the text inside the white box in clear black typography. The website text must be readable, correctly spelled, clean, and consistent. Do not place any other text anywhere in the image.")
+  createdAt              DateTime @default(now())
+  updatedAt              DateTime @updatedAt
+  tasks                  ArticleTask[]
+}
+
+// ─── Article Tasks (permanent, no delete) ────────────────────────
+
+model ArticleTask {
+  id                   Int      @id @default(autoincrement())
+  websiteId            String
+  website              Website  @relation(fields: [websiteId], references: [id])
+  topic                String
+  requestedIdeaCount   Int
+  targetCountry        String?
+  targetAudience       String?
+  articleTone          String?
+  category             String?
+  wordCountTarget      Int?
+  imageRatio           String?
+  imageStyle           String?
+  generateImages       Boolean  @default(true)
+  saveToDrive          Boolean  @default(true)
+  sendToWordPress      Boolean  @default(true)
+  autoRegenerateImages Boolean  @default(true)
+
+  // Task state machine — per spec §5
+  status             String @default("CREATED")
+  currentStage       String @default("CREATED")
+  progressPercentage Int    @default(0)
+
+  // Article content
+  articleTitle       String?
+  articleSlug        String?
+  articleIntroduction String?
+  articleConclusion  String?
+  articleFaq         String? // JSON array of {question, answer}
+  metaTitle          String?
+  metaDescription    String?
+  suggestedTags      String? // JSON array of strings
+
+  // Approval & QC
+  contentApproved  Boolean @default(false)
+  contentQcScore   Int?
+  contentQcDetails String? // JSON
+
+  // WordPress
+  wpPostId     Int?
+  wpEditUrl    String?
+  wpPreviewUrl String?
+
+  // Google Drive
+  driveFolderId  String?
+  driveFolderUrl String?
+
+  // User Rating & Learning Feedback
+  userRating      Int?
+  userFeedback    String?
+  totalDurationMs Int?
+
+  // Timestamps
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
+  completedAt DateTime?
+
+  // Relations
+  competitorSources CompetitorSource[]
+  normalizedIdeas   NormalizedIdea[]
+  articleSections   ArticleSection[]
+  taskLogs          TaskLog[]
+
+  @@index([status])
+  @@index([currentStage])
+  @@index([websiteId])
+  @@index([createdAt])
+}
+
+// ─── Competitor Sources ──────────────────────────────────────────
+
+model CompetitorSource {
+  id            String      @id @default(cuid())
+  articleTaskId Int
+  articleTask   ArticleTask @relation(fields: [articleTaskId], references: [id])
+  url           String
+  pageTitle     String?
+  fetchStatus   String      @default("PENDING") // PENDING, FETCHING, SUCCESS, FAILED
+  extractedText String?     // Cleaned article text (main content)
+  rawIdeas      String?     // JSON: ideas extracted from this source
+  error         String?
+  createdAt     DateTime    @default(now())
+
+  @@index([articleTaskId])
+}
+
+// ─── Normalized Ideas ────────────────────────────────────────────
+
+model NormalizedIdea {
+  id                String      @id @default(cuid())
+  articleTaskId     Int
+  articleTask       ArticleTask @relation(fields: [articleTaskId], references: [id])
+  concept           String
+  attributesJson    String?     // JSON: structured attributes
+  sourceUrls        String?     // JSON array of source URLs
+  sourceCount       Int         @default(1)
+  mergedFrom        String?     // JSON: original idea texts that were merged
+  generatedOriginal Boolean     @default(false) // true if AI-generated (not from competitors)
+  selected          Boolean     @default(false)
+  initialOrder      Int?
+  finalOrder        Int?
+  createdAt         DateTime    @default(now())
+
+  articleSection ArticleSection?
+
+  @@index([articleTaskId])
+}
+
+// ─── Article Sections ────────────────────────────────────────────
+
+model ArticleSection {
+  id               String          @id @default(cuid())
+  articleTaskId    Int
+  articleTask      ArticleTask     @relation(fields: [articleTaskId], references: [id])
+  normalizedIdeaId String?         @unique
+  normalizedIdea   NormalizedIdea? @relation(fields: [normalizedIdeaId], references: [id])
+  position         Int
+  heading          String
+  body             String
+  imagePrompt      String?
+  altText          String?
+  imageDescription String?
+  approved         Boolean         @default(false)
+  createdAt        DateTime        @default(now())
+  updatedAt        DateTime        @updatedAt
+
+  imageGenerations ImageGeneration[]
+
+  @@index([articleTaskId])
+}
+
+// ─── Image Generations ───────────────────────────────────────────
+
+model ImageGeneration {
+  id               String         @id @default(cuid())
+  articleSectionId String
+  articleSection   ArticleSection @relation(fields: [articleSectionId], references: [id])
+  provider         String?
+  model            String?
+  prompt           String
+  localPath        String?        // Local file path for stored image
+  mimeType         String?
+  qcScore          Int?
+  qcStatus         String         @default("PENDING") // PENDING, GENERATING, GENERATED, QC, PASSED, FAILED, NEEDS_MANUAL_REVIEW
+  qcDetails        String?        // JSON: detailed QC results
+  generationAttempt Int           @default(1)
+  error            String?
+  wpMediaId        Int?
+  wpMediaUrl       String?
+  driveFileId      String?
+  createdAt        DateTime       @default(now())
+
+  @@index([articleSectionId])
+  @@index([qcStatus])
+}
+
+// ─── Task Activity Logs (permanent, no delete) ───────────────────
+
+model TaskLog {
+  id            String      @id @default(cuid())
+  articleTaskId Int
+  articleTask   ArticleTask @relation(fields: [articleTaskId], references: [id])
+  eventType     String      // TASK_CREATED, COMPETITOR_FETCHED, IDEAS_EXTRACTED, etc.
+  message       String
+  metadataJson  String?     // JSON: additional context
+  createdAt     DateTime    @default(now())
+
+  @@index([articleTaskId])
+  @@index([createdAt])
+}
+
+// ─── Database-backed Job Queue ───────────────────────────────────
+
+model JobQueue {
+  id          String    @id @default(cuid())
+  taskId      Int
+  jobType     String    // PIPELINE_STEP
+  step        String    // The specific pipeline step to execute
+  payload     String    @default("{}") // JSON
+  status      String    @default("PENDING") // PENDING, PROCESSING, COMPLETED, FAILED
+  attempts    Int       @default(0)
+  maxAttempts Int       @default(3)
+  error       String?
+  lockedAt    DateTime? // Prevent duplicate processing
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
+  startedAt   DateTime?
+  completedAt DateTime?
+
+  @@index([status])
+  @@index([taskId])
+}
+
+// ─── Global Settings ─────────────────────────────────────────────
+
+model Setting {
+  id    String @id @default(cuid())
+  key   String @unique
+  value String
+}
