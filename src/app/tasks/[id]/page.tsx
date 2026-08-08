@@ -21,6 +21,12 @@ import {
   Newspaper,
   Activity,
   ChevronRight,
+  Pause,
+  Play,
+  CheckCheck,
+  RotateCcw,
+  ImageOff,
+  MoreHorizontal,
 } from 'lucide-react';
 import {
   formatDate,
@@ -318,57 +324,21 @@ export default function TaskDetailPage() {
             </div>
             <h1 className="page-title">{task.articleTitle || task.topic}</h1>
           </div>
-          <div style={{ display: 'flex', gap: 8 }}>
+          <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', alignItems: 'center' }}>
+            {/* ── Primary action based on current stage ── */}
             {(task.currentStage === 'FAILED' || task.status === 'FAILED') && (
-              <button
-                className="btn btn-primary"
-                onClick={async () => {
-                  setLoading(true);
-                  await fetch(`/api/tasks/${taskId}/retry`, { method: 'POST' });
-                  await fetchTask();
-                  setLoading(false);
-                }}
-              >
+              <button className="btn btn-primary" onClick={async () => { setLoading(true); await fetch(`/api/tasks/${taskId}/retry`, { method: 'POST' }); await fetchTask(); setLoading(false); }}>
                 <RefreshCw size={16} style={{ marginRight: 6 }} /> RETRY TASK
               </button>
             )}
             {(task.status === 'CANCELLED' || task.currentStage === 'CANCELLED') && (
-              <button
-                className="btn btn-primary"
-                style={{ background: 'linear-gradient(135deg, #7c3aed, #2563eb)', border: 'none' }}
-                onClick={async () => {
-                  setLoading(true);
-                  await fetch(`/api/tasks/${taskId}/resume`, { method: 'POST' });
-                  await fetchTask();
-                  setLoading(false);
-                }}
-              >
+              <button className="btn btn-primary" style={{ background: 'linear-gradient(135deg, #7c3aed, #2563eb)', border: 'none' }} onClick={async () => { setLoading(true); await fetch(`/api/tasks/${taskId}/resume`, { method: 'POST' }); await fetchTask(); setLoading(false); }}>
                 <RefreshCw size={16} style={{ marginRight: 6 }} /> CONTINUE FROM WHERE LEFT OFF
               </button>
             )}
-            {['CREATED', 'FETCHING_COMPETITORS', 'ANALYZING_COMPETITORS', 'EXTRACTING_IDEAS', 'DEDUPLICATING', 'BUILDING_OUTLINE', 'WRITING_ARTICLE', 'GENERATING_IMAGES', 'IMAGE_QC', 'SAVING_TO_DRIVE', 'UPLOADING_TO_WORDPRESS'].includes(task.currentStage) && (
-              <button
-                className="btn btn-secondary"
-                onClick={async () => {
-                  setLoading(true);
-                  await fetch(`/api/tasks/${taskId}/cancel`, { method: 'POST' });
-                  await fetchTask();
-                }}
-              >
-                CANCEL TASK
-              </button>
-            )}
             {task.currentStage === 'READY_FOR_REVIEW' && (
-              <button
-                className="btn btn-success btn-lg"
-                onClick={handleApprove}
-                disabled={approving}
-              >
-                {approving ? (
-                  <Loader size={16} style={{ animation: 'spin 1s linear infinite' }} />
-                ) : (
-                  <CheckCircle2 size={16} />
-                )}
+              <button className="btn btn-success btn-lg" onClick={handleApprove} disabled={approving}>
+                {approving ? <Loader size={16} style={{ animation: 'spin 1s linear infinite' }} /> : <CheckCircle2 size={16} />}
                 APPROVE CONTENT & GENERATE IMAGES
               </button>
             )}
@@ -377,6 +347,49 @@ export default function TaskDetailPage() {
                 <Newspaper size={16} /> Open in WordPress
               </a>
             )}
+
+            {/* ── Task Control Buttons ── */}
+            <div style={{ display: 'flex', gap: 6, alignItems: 'center', borderLeft: '1px solid var(--border-light)', paddingLeft: 8, marginLeft: 4 }}>
+
+              {/* Pause — only when actively running */}
+              {['PROCESSING', 'CREATED', 'FETCHING_COMPETITORS', 'ANALYZING_COMPETITORS', 'EXTRACTING_IDEAS', 'DEDUPLICATING', 'BUILDING_OUTLINE', 'WRITING_ARTICLE', 'GENERATING_IMAGE_PROMPTS', 'GENERATING_IMAGES', 'IMAGE_QC', 'SAVING_TO_DRIVE', 'UPLOADING_TO_WORDPRESS'].includes(task.currentStage) && task.status !== 'PAUSED' && (
+                <button className="btn btn-secondary btn-sm" title="Pause Task" onClick={async () => { if (!confirm('Pause this task? You can resume it later.')) return; setLoading(true); await fetch(`/api/tasks/${taskId}/action`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ action: 'PAUSE' }) }); await fetchTask(); setLoading(false); }}>
+                  <Pause size={14} style={{ marginRight: 4 }} /> Pause
+                </button>
+              )}
+
+              {/* Resume — when paused */}
+              {task.status === 'PAUSED' && (
+                <button className="btn btn-primary btn-sm" title="Resume Task" onClick={async () => { setLoading(true); await fetch(`/api/tasks/${taskId}/action`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ action: 'RESUME' }) }); await fetchTask(); setLoading(false); }}>
+                  <Play size={14} style={{ marginRight: 4 }} /> Resume
+                </button>
+              )}
+
+              {/* Cancel — when not already cancelled/complete */}
+              {!['COMPLETE', 'COMPLETED', 'CANCELLED', 'FAILED'].includes(task.currentStage) && task.status !== 'COMPLETED' && (
+                <button className="btn btn-secondary btn-sm" title="Cancel Task" style={{ color: 'var(--status-red)' }} onClick={async () => { if (!confirm('Cancel this task? This cannot be undone.')) return; setLoading(true); await fetch(`/api/tasks/${taskId}/cancel`, { method: 'POST' }); await fetchTask(); }}>
+                  <XCircle size={14} style={{ marginRight: 4 }} /> Cancel
+                </button>
+              )}
+
+              {/* Mark Complete */}
+              {!['COMPLETE', 'COMPLETED'].includes(task.currentStage) && task.status !== 'COMPLETED' && (
+                <button className="btn btn-secondary btn-sm" title="Mark as Complete" style={{ color: 'var(--status-green)' }} onClick={async () => { if (!confirm('Mark this task as complete?')) return; setLoading(true); await fetch(`/api/tasks/${taskId}/action`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ action: 'MARK_COMPLETE' }) }); await fetchTask(); setLoading(false); }}>
+                  <CheckCheck size={14} style={{ marginRight: 4 }} /> Mark Complete
+                </button>
+              )}
+
+              {/* Restart Article Generation */}
+              <button className="btn btn-secondary btn-sm" title="Restart from Article Generation" onClick={async () => { if (!confirm('Restart article generation? This will delete the current article and all sections.')) return; setLoading(true); await fetch(`/api/tasks/${taskId}/action`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ action: 'RESTART_ARTICLE' }) }); await fetchTask(); setLoading(false); }}>
+                <RotateCcw size={14} style={{ marginRight: 4 }} /> Restart Article
+              </button>
+
+              {/* Restart Image Generation */}
+              <button className="btn btn-secondary btn-sm" title="Restart from Image Generation" onClick={async () => { if (!confirm('Restart image generation? This will delete all existing images and regenerate prompts.')) return; setLoading(true); await fetch(`/api/tasks/${taskId}/action`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ action: 'RESTART_IMAGES' }) }); await fetchTask(); setLoading(false); }}>
+                <ImageOff size={14} style={{ marginRight: 4 }} /> Restart Images
+              </button>
+
+            </div>
           </div>
         </div>
       </div>

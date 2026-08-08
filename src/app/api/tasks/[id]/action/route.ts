@@ -169,6 +169,139 @@ export async function POST(
       return NextResponse.json({ success: true });
     }
 
+    // ─── ACTION: PAUSE ───
+    if (action === 'PAUSE') {
+      await prisma.articleTask.update({
+        where: { id: taskId },
+        data: { status: 'PAUSED' },
+      });
+      // Cancel any pending jobs for this task
+      await prisma.jobQueue.updateMany({
+        where: { taskId, status: 'PENDING' },
+        data: { status: 'CANCELLED' },
+      });
+      await prisma.taskLog.create({
+        data: { articleTaskId: taskId, eventType: 'TASK_PAUSED', message: 'Task paused by user.' },
+      });
+      return NextResponse.json({ success: true });
+    }
+
+    // ─── ACTION: RESUME ───
+    if (action === 'RESUME') {
+      const task = await prisma.articleTask.findUnique({ where: { id: taskId } });
+      if (!task) return NextResponse.json({ error: 'Task not found' }, { status: 404 });
+
+      await prisma.articleTask.update({
+        where: { id: taskId },
+        data: { status: 'PROCESSING' },
+      });
+      // Re-enqueue the current stage
+      await prisma.jobQueue.create({
+        data: {
+          taskId,
+          jobType: 'PIPELINE_STEP',
+          step: task.currentStage,
+          payload: JSON.stringify({ taskId }),
+          status: 'PENDING',
+        },
+      });
+      await prisma.taskLog.create({
+        data: { articleTaskId: taskId, eventType: 'TASK_RESUMED', message: `Task resumed from stage: ${task.currentStage}.` },
+      });
+      return NextResponse.json({ success: true });
+    }
+
+    // ─── ACTION: MARK_COMPLETE ───
+    if (action === 'MARK_COMPLETE') {
+      await prisma.articleTask.update({
+        where: { id: taskId },
+        data: {
+          status: 'COMPLETED',
+          currentStage: 'COMPLETE',
+          progressPercentage: 100,
+          completedAt: new Date(),
+        },
+      });
+      await prisma.taskLog.create({
+        data: { articleTaskId: taskId, eventType: 'TASK_COMPLETED', message: 'Task manually marked as complete by user.' },
+      });
+      return NextResponse.json({ success: true });
+    }
+
+    // ─── ACTION: RESTART_ARTICLE ───
+    if (action === 'RESTART_ARTICLE') {
+      // Clear article content and reset to BUILDING_OUTLINE
+      await prisma.articleTask.update({
+        where: { id: taskId },
+        data: {
+          status: 'PROCESSING',
+          currentStage: 'BUILDING_OUTLINE',
+          progressPercentage: 30,
+          contentApproved: false,
+          articleTitle: null,
+          articleSlug: null,
+          articleIntroduction: null,
+          articleConclusion: null,
+          articleFaq: null,
+          contentQcScore: null,
+          contentQcDetails: null,
+        },
+      });
+      // Clear all existing sections
+      await prisma.articleSection.deleteMany({ where: { articleTaskId: taskId } });
+      // Enqueue
+      await prisma.jobQueue.create({
+        data: {
+          taskId,
+          jobType: 'PIPELINE_STEP',
+          step: 'BUILDING_OUTLINE',
+          payload: JSON.stringify({ taskId }),
+          status: 'PENDING',
+        },
+      });
+      await prisma.taskLog.create({
+        data: { articleTaskId: taskId, eventType: 'RESTARTED_ARTICLE', message: 'Article generation restarted from outline.' },
+      });
+      return NextResponse.json({ success: true });
+    }
+
+    // ─── ACTION: RESTART_IMAGES ───
+    if (action === 'RESTART_IMAGES') {
+      const sections = await prisma.articleSection.findMany({ where: { articleTaskId: taskId } });
+      // Delete all image generations
+      await prisma.imageGeneration.deleteMany({
+        where: { articleSectionId: { in: sections.map(s => s.id) } },
+      });
+      // Clear image prompts so they are regenerated fresh
+      await prisma.articleSection.updateMany({
+        where: { articleTaskId: taskId },
+        data: { imagePrompt: null },
+      });
+      // Reset to GENERATING_IMAGE_PROMPTS so prompts are rebuilt first
+      await prisma.articleTask.update({
+        where: { id: taskId },
+        data: {
+          status: 'PROCESSING',
+          currentStage: 'GENERATING_IMAGE_PROMPTS',
+          progressPercentage: 55,
+          contentApproved: true,
+        },
+      });
+      await prisma.jobQueue.create({
+        data: {
+          taskId,
+          jobType: 'PIPELINE_STEP',
+          step: 'GENERATING_IMAGE_PROMPTS',
+          payload: JSON.stringify({ taskId }),
+          status: 'PENDING',
+        },
+      });
+      await prisma.taskLog.create({
+        data: { articleTaskId: taskId, eventType: 'RESTARTED_IMAGES', message: 'Image generation restarted from prompt generation.' },
+      });
+      return NextResponse.json({ success: true });
+    }
+
     return NextResponse.json({ error: 'Invalid action' }, { status: 400 });
   } catch (error: any) {
     console.error('Task Action API Error:', error);
