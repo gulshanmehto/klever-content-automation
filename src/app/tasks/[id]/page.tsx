@@ -205,13 +205,11 @@ export default function TaskDetailPage() {
           setClientGenerationStatus(`Generating image ${doneCount + 1} of ${totalCount}: ${section.heading}...`);
 
           try {
-            const edgeRes = await fetch('/api/proxy/cloudflare', {
+            const edgeRes = await fetch('/api/proxy/image', {
               method: 'POST',
               headers: { 'Content-Type': 'application/json' },
               body: JSON.stringify({
-                prompt: section.prompt,
-                accountId: credentials.accountId,
-                apiToken: credentials.apiToken,
+                prompt: section.prompt
               }),
             });
             const edgeData = await edgeRes.json();
