@@ -212,16 +212,31 @@ export default function TaskDetailPage() {
             <h1 className="page-title">{task.articleTitle || task.topic}</h1>
           </div>
           <div style={{ display: 'flex', gap: 8 }}>
-            {task.currentStage === 'FAILED' && (
+            {(task.currentStage === 'FAILED' || task.status === 'FAILED') && (
               <button
                 className="btn btn-primary"
                 onClick={async () => {
                   setLoading(true);
                   await fetch(`/api/tasks/${taskId}/retry`, { method: 'POST' });
                   await fetchTask();
+                  setLoading(false);
                 }}
               >
                 <RefreshCw size={16} style={{ marginRight: 6 }} /> RETRY TASK
+              </button>
+            )}
+            {(task.status === 'CANCELLED' || task.currentStage === 'CANCELLED') && (
+              <button
+                className="btn btn-primary"
+                style={{ background: 'linear-gradient(135deg, #7c3aed, #2563eb)', border: 'none' }}
+                onClick={async () => {
+                  setLoading(true);
+                  await fetch(`/api/tasks/${taskId}/resume`, { method: 'POST' });
+                  await fetchTask();
+                  setLoading(false);
+                }}
+              >
+                <RefreshCw size={16} style={{ marginRight: 6 }} /> CONTINUE FROM WHERE LEFT OFF
               </button>
             )}
             {['CREATED', 'FETCHING_COMPETITORS', 'ANALYZING_COMPETITORS', 'EXTRACTING_IDEAS', 'DEDUPLICATING', 'BUILDING_OUTLINE', 'WRITING_ARTICLE', 'GENERATING_IMAGES', 'IMAGE_QC', 'SAVING_TO_DRIVE', 'UPLOADING_TO_WORDPRESS'].includes(task.currentStage) && (
