@@ -76,10 +76,20 @@ export class CloudflareWorkersAIImageProvider implements ImageProvider {
         throw new Error(`Cloudflare AI API request failed: ${response.status} ${errorText}`);
       }
 
-      // Cloudflare returns raw binary image bytes for flux-1-schnell
-      const contentType = response.headers.get('content-type') || 'image/jpeg';
-      const arrayBuffer = await response.arrayBuffer();
-      const base64 = Buffer.from(arrayBuffer).toString('base64');
+      const contentType = response.headers.get('content-type') || '';
+      let base64 = '';
+
+      if (contentType.includes('application/json')) {
+        const json = await response.json();
+        if (!json.success || !json.result || !json.result.image) {
+          throw new Error('Cloudflare API returned success=false or missing image data');
+        }
+        base64 = json.result.image;
+      } else {
+        // Fallback if Cloudflare ever switches back to raw binary bytes
+        const arrayBuffer = await response.arrayBuffer();
+        base64 = Buffer.from(arrayBuffer).toString('base64');
+      }
 
       if (!base64) throw new Error('Cloudflare returned empty image data');
 

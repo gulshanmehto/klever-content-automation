@@ -54,9 +54,20 @@ export async function POST(request: NextRequest) {
       throw new Error(`Cloudflare API Error ${response.status}: ${err}`);
     }
 
-    // flux-1-schnell returns raw binary bytes
-    const arrayBuffer = await response.arrayBuffer();
-    const base64 = Buffer.from(arrayBuffer).toString('base64');
+    const contentType = response.headers.get('content-type') || '';
+    let base64 = '';
+
+    if (contentType.includes('application/json')) {
+      const json = await response.json();
+      if (!json.success || !json.result || !json.result.image) {
+        throw new Error('Cloudflare API returned success=false or missing image data');
+      }
+      base64 = json.result.image;
+    } else {
+      // Fallback if Cloudflare ever switches back to raw binary bytes
+      const arrayBuffer = await response.arrayBuffer();
+      base64 = Buffer.from(arrayBuffer).toString('base64');
+    }
 
     return NextResponse.json({
       success: true,
