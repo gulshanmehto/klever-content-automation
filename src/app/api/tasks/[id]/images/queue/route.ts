@@ -50,8 +50,8 @@ export async function GET(
       credentials: { accountId, apiToken },
       options: { aspectRatio: task.imageRatio || '16:9', style: task.imageStyle || 'photorealistic' },
       sections: sectionsToProcess,
-      total: task.articleSections.filter(s => s.imagePrompt).length,
-      done: task.articleSections.filter(s => s.imagePrompt).length - sectionsToProcess.length
+      total: task.articleSections.filter((s: any) => s.imagePrompt).length,
+      done: task.articleSections.filter((s: any) => s.imagePrompt).length - sectionsToProcess.length
     });
 
   } catch (error: any) {
