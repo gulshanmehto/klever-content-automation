@@ -337,22 +337,6 @@ export default function NewArticlePage() {
                 </div>
               </div>
 
-              <div className="form-group">
-                <label className="form-label" htmlFor="imgStyle">Image Style Preset</label>
-                <select
-                  id="imgStyle"
-                  className="form-select"
-                  value={imageStyle}
-                  onChange={(e) => setImageStyle(e.target.value)}
-                >
-                  <option value="photorealistic">Photorealistic</option>
-                  <option value="editorial">Editorial Photography</option>
-                  <option value="lifestyle">Lifestyle Photography</option>
-                  <option value="studio">Studio Photography</option>
-                  <option value="illustration">Illustration</option>
-                  <option value="3d_render">3D Render</option>
-                </select>
-              </div>
             </div>
 
             {/* Checkboxes */}

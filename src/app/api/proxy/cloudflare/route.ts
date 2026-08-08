@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { buildFluxFashionPrompt, FLUX_NEGATIVE_PROMPT } from '@/providers/image/fashion-prompt';
+import { buildFluxFashionPrompt, FLUX_NEGATIVE_PROMPT, getRatioDimensions } from '@/providers/image/fashion-prompt';
 
 // Using Node.js runtime for Buffer support and longer execution time
 export const runtime = 'nodejs';
@@ -29,7 +29,10 @@ export async function POST(request: NextRequest) {
     // Apply the full Flux fashion guardrails to produce a highly descriptive prompt
     const guardedPrompt = buildFluxFashionPrompt(prompt, style, aspectRatio);
 
-    console.log(`[Cloudflare Proxy] Sending Flux-1-Schnell request, prompt length: ${guardedPrompt.length}`);
+    // Convert aspect ratio to actual pixel dimensions Flux-1-Schnell understands
+    const dims = getRatioDimensions(aspectRatio);
+
+    console.log(`[Cloudflare Proxy] Flux-1-Schnell request | ratio: ${aspectRatio} | ${dims.width}x${dims.height} | prompt: ${guardedPrompt.length} chars`);
 
     const response = await fetch(
       `https://api.cloudflare.com/client/v4/accounts/${accountId}/ai/run/${model}`,
@@ -44,6 +47,8 @@ export async function POST(request: NextRequest) {
           negative_prompt: FLUX_NEGATIVE_PROMPT,
           num_steps: 8,
           guidance: 7.5,
+          width: dims.width,
+          height: dims.height,
         }),
       }
     );

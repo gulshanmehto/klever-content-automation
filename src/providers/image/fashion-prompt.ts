@@ -11,7 +11,25 @@
  *   4. A background that matches the season / style of the outfit
  */
 
-/** Positive prefix injected before every prompt */
+/**
+ * Maps the user's chosen aspect ratio to optimal pixel dimensions for Flux-1-Schnell.
+ * Flux-1-Schnell requires dimensions that are multiples of 8 and max 1024px on the longest side.
+ */
+export const RATIO_DIMENSIONS: Record<string, { width: number; height: number }> = {
+  '16:9':  { width: 1024, height: 576  },  // Landscape
+  '4:3':   { width: 1024, height: 768  },  // Standard
+  '1:1':   { width: 1024, height: 1024 },  // Square
+  '9:16':  { width: 576,  height: 1024 },  // Portrait (Pinterest/Instagram)
+  '4:5':   { width: 819,  height: 1024 },  // Portrait (Instagram feed)
+};
+
+/** Returns pixel dimensions for a given aspect ratio string */
+export function getRatioDimensions(aspectRatio?: string): { width: number; height: number } {
+  if (!aspectRatio) return RATIO_DIMENSIONS['4:5'];
+  return RATIO_DIMENSIONS[aspectRatio] || RATIO_DIMENSIONS['4:5'];
+}
+
+
 const POSITIVE_PREFIX =
   'Full-length commercial lifestyle fashion photography. ' +
   'Subject: a naturally beautiful American woman aged 28-38, healthy slim build, warm sun-kissed skin, ' +

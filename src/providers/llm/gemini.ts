@@ -367,26 +367,66 @@ ${JSON.stringify(outline)}
     const ai = await this.getClient();
     const model = ai.getGenerativeModel({ model: 'models/gemini-3.5-flash-lite' });
 
-    const prompt = `
-You are an expert AI fashion photography art director. Your job is to write HIGHLY DESCRIPTIVE image prompts for the Flux-1-Schnell model.
+    // ── Load 2-3 random reference images from disk ──────────────────────────
+    // Images sit in the "Ai Reference Images" folder at the project root.
+    // We pick 3 different ones at random every call so Gemini sees variety.
+    const { readdirSync, readFileSync } = await import('fs');
+    const path = await import('path');
 
-CRITICAL: Flux-1-Schnell is a 4-step model that LOSES DETAIL with short prompts. You MUST write a prompt that is at least 120 words to force it to capture all micro-details.
+    const refDir = path.join(process.cwd(), 'Ai Reference Images');
+    let allImages: string[] = [];
+    try {
+      allImages = readdirSync(refDir).filter(f =>
+        /\.(webp|jpg|jpeg|png)$/i.test(f)
+      );
+    } catch {
+      // Folder not accessible at runtime (e.g. edge env) — skip images
+    }
 
-REFERENCE STYLE (this is EXACTLY what the output should look like):
-- A naturally beautiful American woman, brunette wavy hair, warm sun-kissed skin, relaxed confident pose
-- Full-body or 3/4 length shot, sharp DSLR-quality focus on the subject
-- The outfit is described in extreme detail: fabric type, color, fit, every garment piece, accessories (bag, shoes, sunglasses, jewellery)
-- The background is a specific real-world setting: a bright European street, coastal promenade, city park, etc.
-- Example of a GOOD prompt: "Full-length commercial lifestyle fashion photography. A naturally beautiful American woman in her early 30s, warm sun-kissed complexion, long wavy brunette hair falling softly over her shoulders, wearing a fitted white ribbed-knit cropped tank top, high-waisted straight-leg light wash denim jeans with a slim black leather belt, clean white leather low-top sneakers, small black leather crossbody chain bag, dainty gold hoop earrings, round gold-frame sunglasses. She is smiling warmly while walking casually on a sunny upscale European-style pedestrian sidewalk, white-painted building facade with climbing green vines behind her. Soft warm afternoon sunlight, sharp focus, cinematic depth of field, 85mm lens, magazine editorial quality."
+    // Shuffle and pick 3
+    const shuffled = allImages.sort(() => Math.random() - 0.5);
+    const picked = shuffled.slice(0, 3);
+
+    // Build inline image parts for Gemini multimodal
+    const imageParts: Array<{ inlineData: { mimeType: string; data: string } }> = [];
+    for (const filename of picked) {
+      try {
+        const filePath = path.join(refDir, filename);
+        const data = readFileSync(filePath).toString('base64');
+        imageParts.push({
+          inlineData: {
+            mimeType: 'image/webp',
+            data,
+          },
+        });
+      } catch {
+        // Skip unreadable files
+      }
+    }
+    // ────────────────────────────────────────────────────────────────────────
+
+    const textPrompt = `
+You are an expert AI fashion photography art director. Your job is to write HIGHLY DESCRIPTIVE image prompts for the Flux-1-Schnell AI image model.
+
+${imageParts.length > 0 ? `I am sending you ${imageParts.length} real Pinterest fashion reference photos above. Study them carefully:
+- Note the EXACT type of outdoor environment (European streets with climbing vines, coastal stone patios, lush garden with blooming flowers, dappled-light parks, sunny promenades)
+- Note the lighting quality (warm golden-hour, soft natural daylight, bright midday)  
+- Note the model (brunette, sun-kissed, 28-38, natural confident expression)
+- Note how every garment is clearly visible in full-body or 3/4 length shots
+Your prompts MUST recreate this exact real-world lifestyle photography quality and these specific environments.
+` : ''}
+
+CRITICAL: Flux-1-Schnell is a 4-step fast model that LOSES MICRO-DETAIL with short prompts. You MUST write prompts of at least 120 words to force it to capture all garment textures, accessories, and background details.
 
 MANDATORY RULES:
-1. NEVER name the article topic in the prompt (NEVER say "strapless dress ideas" or "crop top outfit ideas")
-2. INSTEAD, describe ONE specific, concrete, fully-styled outfit inspired by the concept (e.g., "a white strapless cotton bustier paired with high-waisted wide-leg linen trousers and tan leather block-heel sandals")
-3. Always specify: fabric, exact color, garment name, fit/silhouette, + all accessories (shoes, bag, jewellery, sunglasses)
-4. Always specify the background scene in detail
-5. Always describe the model: age range, hair color/style, skin tone, pose/expression
+1. NEVER use the article topic name (NEVER write "crop top ideas" or "strapless dress outfit ideas" — instead describe a specific styled look)
+2. Describe ONE fully-styled outfit per section: exact fabric (linen, ribbed knit, chiffon, denim), exact color, garment name, fit/silhouette
+3. List EVERY accessory: shoes (brand-style, color, heel type), bag (shape, material, color, strap), jewellery (earrings, necklace, bracelet), sunglasses
+4. Describe the BACKGROUND in detail: e.g. "sun-drenched European pedestrian street, white-painted rendered building walls with cascading green ivy vines, warm terracotta-tiled pavement" OR "rocky coastal stone patio overlooking bright turquoise Mediterranean sea, woven rattan cafe chairs, thatched canopy overhead" OR "lush English cottage garden, blooming white hydrangeas and pink roses, old stone pathway, soft dappled afternoon light" OR "dappled-light city park under a large oak tree, white picnic blanket on green grass, soft bokeh foliage background"
+5. Always describe the model: aged 28-38, warm sun-kissed skin, long wavy brunette hair, warm confident smile, relaxed natural pose
+6. End with: "Shot on 85mm DSLR, cinematic depth of field, sharp focus on subject, soft natural light, magazine editorial quality, highly photorealistic."
 
-Return STRICTLY as a JSON array (no markdown, no explanation):
+Return STRICTLY as a JSON array (no markdown, no code fences, no explanation):
 [
   { "sectionPosition": 1, "prompt": "..." },
   { "sectionPosition": 2, "prompt": "..." }
@@ -396,13 +436,19 @@ Article sections to generate prompts for:
 ${JSON.stringify(sections.map(s => ({ position: s.position, heading: s.heading, concept: s.concept, bodySnippet: s.body.slice(0, 400) })))}
 `;
 
+    const parts: any[] = [
+      ...imageParts,
+      { text: textPrompt },
+    ];
+
     const response = await model.generateContent({
-      contents: [{ role: 'user', parts: [{ text: prompt }] }],
+      contents: [{ role: 'user', parts }],
       generationConfig: { responseMimeType: 'application/json' },
     });
 
     return JSON.parse(response.response.text()) as ImagePromptResult[];
   }
+
 
 
   async qualityCheckContent(article: ArticleContent, config: ArticleConfig): Promise<ContentQCResult> {
