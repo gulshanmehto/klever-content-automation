@@ -106,7 +106,12 @@ export async function POST(
         where: { articleSectionId: { in: sections.map(s => s.id) } },
       });
 
-      // Reset task status
+      // Delete all PENDING jobs for this task to avoid race conditions
+      await prisma.jobQueue.deleteMany({
+        where: { taskId, status: 'PENDING' },
+      });
+
+      // Reset task status to GENERATING_IMAGES to re-roll images with existing prompts
       await prisma.articleTask.update({
         where: { id: taskId },
         data: {
@@ -143,8 +148,8 @@ export async function POST(
       await prisma.articleTask.update({
         where: { id: taskId },
         data: {
-          currentStage: 'QUALITY_CHECK',
-          progressPercentage: 70,
+          currentStage: 'IMAGE_QC',
+          progressPercentage: 78,
         },
       });
 
@@ -152,7 +157,7 @@ export async function POST(
         data: {
           taskId,
           jobType: 'PIPELINE_STEP',
-          step: 'QUALITY_CHECK',
+          step: 'IMAGE_QC',
           payload: JSON.stringify({ taskId }),
           status: 'PENDING',
         },
@@ -222,6 +227,11 @@ export async function POST(
           completedAt: new Date(),
         },
       });
+      // Delete any pending jobs since the task is now complete
+      await prisma.jobQueue.deleteMany({
+        where: { taskId, status: 'PENDING' },
+      });
+
       await prisma.taskLog.create({
         data: { articleTaskId: taskId, eventType: 'TASK_COMPLETED', message: 'Task manually marked as complete by user.' },
       });
@@ -249,6 +259,12 @@ export async function POST(
       });
       // Clear all existing sections
       await prisma.articleSection.deleteMany({ where: { articleTaskId: taskId } });
+
+      // Delete all PENDING jobs for this task to avoid race conditions
+      await prisma.jobQueue.deleteMany({
+        where: { taskId, status: 'PENDING' },
+      });
+
       // Enqueue
       await prisma.jobQueue.create({
         data: {
@@ -277,6 +293,12 @@ export async function POST(
         where: { articleTaskId: taskId },
         data: { imagePrompt: null },
       });
+
+      // Delete all PENDING jobs for this task to avoid race conditions
+      await prisma.jobQueue.deleteMany({
+        where: { taskId, status: 'PENDING' },
+      });
+
       // Reset to GENERATING_IMAGE_PROMPTS so prompts are rebuilt first
       await prisma.articleTask.update({
         where: { id: taskId },

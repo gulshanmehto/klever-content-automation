@@ -49,9 +49,9 @@ export async function POST(
       },
     });
 
-    // Cancel any stuck PROCESSING jobs for this task before re-enqueuing
+    // Cancel any stuck PROCESSING or PENDING jobs for this task before re-enqueuing
     await prisma.jobQueue.updateMany({
-      where: { taskId, status: 'PROCESSING' },
+      where: { taskId, status: { in: ['PROCESSING', 'PENDING'] } },
       data: { status: 'CANCELLED' },
     });
 

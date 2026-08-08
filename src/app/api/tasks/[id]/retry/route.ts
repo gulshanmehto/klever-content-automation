@@ -46,6 +46,11 @@ export async function POST(
       },
     });
 
+    // Delete any PENDING jobs for this task to avoid race conditions
+    await prisma.jobQueue.deleteMany({
+      where: { taskId, status: 'PENDING' },
+    });
+
     // Enqueue retry job
     await prisma.jobQueue.create({
       data: {
