@@ -15,6 +15,9 @@ export default function RootLayout({
 }) {
   return (
     <html lang="en">
+      <head>
+        <script src="https://js.puter.com/v2/"></script>
+      </head>
       <body>
         <AuthProvider>
           <AppShell>{children}</AppShell>

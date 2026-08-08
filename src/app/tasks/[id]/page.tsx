@@ -205,14 +205,34 @@ export default function TaskDetailPage() {
           setClientGenerationStatus(`Generating image ${doneCount + 1} of ${totalCount}: ${section.heading}...`);
 
           try {
-            const edgeRes = await fetch('/api/proxy/image', {
-              method: 'POST',
-              headers: { 'Content-Type': 'application/json' },
-              body: JSON.stringify({
-                prompt: section.prompt
-              }),
-            });
-            const edgeData = await edgeRes.json();
+            let imgElement;
+            let finalModel = 'nano-banana';
+            
+            try {
+              imgElement = await (window as any).puter.ai.txt2img(section.prompt, { model: 'nano-banana' });
+            } catch (err) {
+              console.warn('Nano Banana failed, falling back to DALL-E 2', err);
+              finalModel = 'dall-e-2';
+              imgElement = await (window as any).puter.ai.txt2img(section.prompt, { model: 'dall-e-2' });
+            }
+
+            // Extract base64 from HTMLImageElement
+            let base64 = '';
+            if (imgElement.src.startsWith('data:image')) {
+              base64 = imgElement.src.split(',')[1];
+            } else {
+              // Try canvas extraction if it's not a data URL
+              const canvas = document.createElement('canvas');
+              canvas.width = imgElement.naturalWidth || imgElement.width || 1024;
+              canvas.height = imgElement.naturalHeight || imgElement.height || 1024;
+              const ctx = canvas.getContext('2d');
+              if (ctx) {
+                // To avoid tainted canvas, we might need crossOrigin, but Puter usually gives blobs or allows CORS
+                imgElement.crossOrigin = "anonymous";
+                ctx.drawImage(imgElement, 0, 0);
+                base64 = canvas.toDataURL('image/png').split(',')[1];
+              }
+            }
 
             // Save result (success or error)
             await fetch(`/api/tasks/${taskId}/images/save`, {
@@ -221,11 +241,11 @@ export default function TaskDetailPage() {
               body: JSON.stringify({
                 sectionId: section.id,
                 prompt: section.prompt,
-                provider: edgeData.provider,
-                model: edgeData.model,
-                mimeType: edgeData.mimeType,
-                imageBase64: edgeData.imageBase64,
-                error: edgeData.error || (!edgeRes.ok ? 'Edge Proxy Failed' : null),
+                provider: 'puter.js',
+                model: finalModel,
+                mimeType: 'image/png',
+                imageBase64: base64,
+                error: null,
               })
             });
           } catch (err: any) {

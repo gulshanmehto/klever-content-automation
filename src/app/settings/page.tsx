@@ -114,7 +114,6 @@ export default function SettingsPage() {
               <div>GOOGLE_CLIENT_SECRET=••••••••</div>
               <div>GOOGLE_REFRESH_TOKEN=••••••••</div>
               <div>CREDENTIAL_ENCRYPTION_KEY=••••••••</div>
-              <div>OPENAI_API_KEY=••••••••</div>
             </div>
           </div>
         </div>
