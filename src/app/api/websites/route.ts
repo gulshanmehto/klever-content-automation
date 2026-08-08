@@ -86,6 +86,7 @@ export async function POST(request: NextRequest) {
       );
     }
     console.error('POST /api/websites error:', error);
-    return NextResponse.json({ error: 'Failed to create website' }, { status: 500 });
+    const msg = error instanceof Error ? error.message : 'Unknown error';
+    return NextResponse.json({ error: `Failed to create website: ${msg}` }, { status: 500 });
   }
 }
