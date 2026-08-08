@@ -34,9 +34,9 @@ export async function POST(
       where: { id: taskId },
       data: {
         contentApproved: true,
-        currentStage: task.generateImages ? 'GENERATING_IMAGES' : 
-                      task.saveToDrive ? 'SAVING_TO_DRIVE' : 
-                      task.sendToWordPress ? 'UPLOADING_TO_WORDPRESS' : 'COMPLETED',
+        currentStage: task.generateImages ? 'GENERATING_IMAGES' :
+          task.saveToDrive ? 'SAVING_TO_DRIVE' :
+            task.sendToWordPress ? 'UPLOADING_TO_WORDPRESS' : 'COMPLETED',
         progressPercentage: task.generateImages ? 58 : 85,
       },
     });
@@ -52,8 +52,8 @@ export async function POST(
 
     // Determine next step and enqueue
     const nextStep = task.generateImages ? 'GENERATING_IMAGE_PROMPTS' :
-                     task.saveToDrive ? 'SAVING_TO_DRIVE' :
-                     task.sendToWordPress ? 'UPLOADING_TO_WORDPRESS' : 'COMPLETE';
+      task.saveToDrive ? 'SAVING_TO_DRIVE' :
+        task.sendToWordPress ? 'UPLOADING_TO_WORDPRESS' : 'COMPLETE';
 
     await prisma.jobQueue.create({
       data: {

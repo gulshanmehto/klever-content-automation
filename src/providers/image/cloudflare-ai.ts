@@ -1,5 +1,6 @@
 import { prisma } from '@/lib/db';
 import type { ImageProvider, ImageOptions, ImageResult } from './types';
+import { buildFluxFashionPrompt, FLUX_NEGATIVE_PROMPT } from './fashion-prompt';
 
 export class CloudflareWorkersAIImageProvider implements ImageProvider {
   private async getCredentials(): Promise<{ accountId: string; apiToken: string }> {
@@ -29,7 +30,6 @@ export class CloudflareWorkersAIImageProvider implements ImageProvider {
       return false;
     }
 
-    // Save updated neuron usage for today
     await prisma.setting.upsert({
       where: { key },
       update: { value: String(currentUsage + neuronsToUse) },
@@ -39,9 +39,9 @@ export class CloudflareWorkersAIImageProvider implements ImageProvider {
   }
 
   async generateImage(prompt: string, options: ImageOptions): Promise<ImageResult> {
-    const neuronCost = 200; // SDXL XL Base model cost estimate: ~200 neurons per generation
+    // flux-1-schnell costs ~4 neurons per step; we use 8 steps = ~32 neurons
+    const neuronCost = 32;
 
-    // 1. Enforce free tier budget limits before executing API calls
     const budgetOk = await this.checkAndIncrementNeuronUsage(neuronCost);
     if (!budgetOk) {
       return this.fallbackSvg(prompt, options, 'Daily 10,000 Cloudflare Neuron limit reached. Generation skipped.');
@@ -49,7 +49,12 @@ export class CloudflareWorkersAIImageProvider implements ImageProvider {
 
     try {
       const { accountId, apiToken } = await this.getCredentials();
-      const model = '@cf/bytedance/stable-diffusion-xl-lightning';
+      const model = '@cf/black-forest-labs/flux-1-schnell';
+
+      // Build the highly descriptive fashion prompt with all guardrails
+      const guardedPrompt = buildFluxFashionPrompt(prompt, options.style, options.aspectRatio);
+
+      console.log(`[Cloudflare Flux-1-Schnell] Generating image with ${guardedPrompt.length} char prompt`);
 
       const response = await fetch(
         `https://api.cloudflare.com/client/v4/accounts/${accountId}/ai/run/${model}`,
@@ -60,10 +65,10 @@ export class CloudflareWorkersAIImageProvider implements ImageProvider {
             'Content-Type': 'application/json',
           },
           body: JSON.stringify({
-            prompt: prompt,
-            num_steps: 20,
-            guidance_scale: 7.5,
-            negative_prompt: "ugly, deformed, mutated, bad anatomy, bad hands, missing fingers, extra digits, extra limbs, cross-eyed, poorly drawn face, blurry, low resolution, bad proportions, unnatural features, bad lighting, abstract",
+            prompt: guardedPrompt,
+            negative_prompt: FLUX_NEGATIVE_PROMPT,
+            num_steps: 8,    // More steps = more micro-detail for fashion clothing
+            guidance: 7.5,   // Strong adherence to prompt for accurate outfits
           }),
         }
       );
@@ -73,17 +78,21 @@ export class CloudflareWorkersAIImageProvider implements ImageProvider {
         throw new Error(`Cloudflare AI API request failed: ${response.status} ${errorText}`);
       }
 
-      const buffer = await response.arrayBuffer();
-      const base64 = Buffer.from(buffer).toString('base64');
+      // Cloudflare returns raw binary image bytes for flux-1-schnell
+      const contentType = response.headers.get('content-type') || 'image/jpeg';
+      const arrayBuffer = await response.arrayBuffer();
+      const base64 = Buffer.from(arrayBuffer).toString('base64');
+
+      if (!base64) throw new Error('Cloudflare returned empty image data');
 
       return {
         imageBase64: base64,
         mimeType: 'image/jpeg',
         provider: 'cloudflare-ai',
-        model: 'stable-diffusion-xl-base-1.0',
+        model,
       };
     } catch (e: any) {
-      console.error('Cloudflare Workers AI generation failed, falling back to SVG:', e.message);
+      console.error('[Cloudflare Flux-1-Schnell] Generation failed:', e.message);
       return this.fallbackSvg(prompt, options, e.message);
     }
   }
@@ -93,15 +102,16 @@ export class CloudflareWorkersAIImageProvider implements ImageProvider {
     const height = options.height || 576;
     const svg = `<svg xmlns="http://www.w3.org/2000/svg" width="${width}" height="${height}">
       <rect width="100%" height="100%" fill="#fff5f5"/>
-      <text x="50%" y="45%" text-anchor="middle" font-family="Arial" font-size="16" fill="#e53e3e" font-weight="bold">Cloudflare AI Fallback</text>
-      <text x="50%" y="55%" text-anchor="middle" font-family="Arial" font-size="12" fill="#718096">${reason.substring(0, 70)}</text>
+      <text x="50%" y="40%" text-anchor="middle" font-family="Arial" font-size="16" fill="#e53e3e" font-weight="bold">Image Generation Failed</text>
+      <text x="50%" y="50%" text-anchor="middle" font-family="Arial" font-size="12" fill="#718096">${reason.substring(0, 70)}</text>
+      <text x="50%" y="60%" text-anchor="middle" font-family="Arial" font-size="11" fill="#a0aec0">Cloudflare Flux-1-Schnell</text>
     </svg>`;
 
     return {
       imageBase64: Buffer.from(svg).toString('base64'),
       mimeType: 'image/svg+xml',
       provider: 'cloudflare-fallback',
-      model: 'stable-diffusion-xl-base-1.0-fallback',
+      model: '@cf/black-forest-labs/flux-1-schnell-fallback',
     };
   }
 }

@@ -195,7 +195,7 @@ export default function TaskDetailPage() {
            return;
         }
 
-        // 2. Loop through sections and process via Edge proxy
+        // 2. Loop through sections and generate via Cloudflare Flux-1-Schnell (server-side)
         let doneCount = queueData.done || 0;
         const totalCount = queueData.total || 1;
 
@@ -205,66 +205,54 @@ export default function TaskDetailPage() {
           setClientGenerationStatus(`Generating image ${doneCount + 1} of ${totalCount}: ${section.heading}...`);
 
           try {
-            let imgElement;
-            let finalModel = 'nano-banana';
-            
-            try {
-              imgElement = await (window as any).puter.ai.txt2img(section.prompt, { model: 'nano-banana' });
-            } catch (err) {
-              console.warn('Nano Banana failed, falling back to DALL-E 2', err);
-              finalModel = 'dall-e-2';
-              imgElement = await (window as any).puter.ai.txt2img(section.prompt, { model: 'dall-e-2' });
-            }
+            // Call the server-side Cloudflare Flux-1-Schnell proxy
+            const cfRes = await fetch('/api/proxy/cloudflare', {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({
+                prompt: section.prompt,
+                style: queueData.options?.style || 'photorealistic',
+                aspectRatio: queueData.options?.aspectRatio || '4:5',
+              }),
+            });
 
-            // Extract base64 from HTMLImageElement
-            let base64 = '';
-            if (imgElement.src.startsWith('data:image')) {
-              base64 = imgElement.src.split(',')[1];
-            } else {
-              // Try canvas extraction if it's not a data URL
-              const canvas = document.createElement('canvas');
-              canvas.width = imgElement.naturalWidth || imgElement.width || 1024;
-              canvas.height = imgElement.naturalHeight || imgElement.height || 1024;
-              const ctx = canvas.getContext('2d');
-              if (ctx) {
-                // To avoid tainted canvas, we might need crossOrigin, but Puter usually gives blobs or allows CORS
-                imgElement.crossOrigin = "anonymous";
-                ctx.drawImage(imgElement, 0, 0);
-                base64 = canvas.toDataURL('image/png').split(',')[1];
-              }
-            }
+            const cfData = await cfRes.json();
 
-            // Save result (success or error)
+            // Save result to database
             await fetch(`/api/tasks/${taskId}/images/save`, {
               method: 'POST',
               headers: { 'Content-Type': 'application/json' },
               body: JSON.stringify({
                 sectionId: section.id,
                 prompt: section.prompt,
-                provider: 'puter.js',
-                model: finalModel,
-                mimeType: 'image/png',
-                imageBase64: base64,
-                error: null,
+                provider: cfData.provider || 'cloudflare-ai',
+                model: cfData.model || '@cf/black-forest-labs/flux-1-schnell',
+                mimeType: cfData.mimeType || 'image/jpeg',
+                imageBase64: cfData.imageBase64,
+                error: cfData.error || (!cfRes.ok ? 'Cloudflare API Failed' : null),
               })
             });
           } catch (err: any) {
-             // Save fatal error
-             await fetch(`/api/tasks/${taskId}/images/save`, {
-               method: 'POST',
-               headers: { 'Content-Type': 'application/json' },
-               body: JSON.stringify({ sectionId: section.id, prompt: section.prompt, error: err.message })
-             });
+            // Save fatal error
+            await fetch(`/api/tasks/${taskId}/images/save`, {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({ sectionId: section.id, prompt: section.prompt, error: err.message })
+            });
           }
           doneCount++;
-          // Fetch task immediately to update progress bar visually
+          // Refresh task to update progress bar visually
           fetchTask();
         }
 
-        // Loop finished, all done!
+        // Loop finished — advance to QC
         if (isCancelled) return;
         setClientGenerationStatus('Generation complete. Advancing...');
-        await fetch(`/api/tasks/${taskId}/approve`, { method: 'POST' });
+        await fetch(`/api/tasks/${taskId}/action`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ action: 'FINISH_IMAGES' })
+        });
         fetchTask();
 
       } catch (err: any) {

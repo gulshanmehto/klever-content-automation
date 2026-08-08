@@ -368,31 +368,32 @@ ${JSON.stringify(outline)}
     const model = ai.getGenerativeModel({ model: 'models/gemini-3.5-flash-lite' });
 
     const prompt = `
-You are a professional fashion photography art director creating AI image prompts for a US women's fashion blog.
-Your job is to translate the article's concept into a HIGHLY SPECIFIC, photorealistic image prompt.
+You are an expert AI fashion photography art director. Your job is to write HIGHLY DESCRIPTIVE image prompts for the Flux-1-Schnell model.
 
-CRITICAL RULES FOR OUTFIT DESCRIPTIONS:
-- DO NOT use abstract article topics (e.g., NEVER say "strapless dress ideas").
-- INSTEAD, invent a specific, styled outfit (e.g., "a white linen strapless midi dress paired with light blue vintage denim jeans and brown leather sandals").
-- Detail the fabric, color, fit, and accessories.
+CRITICAL: Flux-1-Schnell is a 4-step model that LOSES DETAIL with short prompts. You MUST write a prompt that is at least 120 words to force it to capture all micro-details.
 
-CRITICAL RULES FOR THE MODEL & ANATOMY:
-- Target model: An American woman, naturally beautiful, aged 25-45, healthy build, relatable everyday look (like a Pinterest fashion blogger).
-- Describe her face, hair, and pose clearly to ensure the AI generates correct anatomy.
-- Include phrases like: "perfectly symmetrical face", "detailed natural eyes", "correct anatomy", "perfectly formed hands with 5 fingers".
+REFERENCE STYLE (this is EXACTLY what the output should look like):
+- A naturally beautiful American woman, brunette wavy hair, warm sun-kissed skin, relaxed confident pose
+- Full-body or 3/4 length shot, sharp DSLR-quality focus on the subject
+- The outfit is described in extreme detail: fabric type, color, fit, every garment piece, accessories (bag, shoes, sunglasses, jewellery)
+- The background is a specific real-world setting: a bright European street, coastal promenade, city park, etc.
+- Example of a GOOD prompt: "Full-length commercial lifestyle fashion photography. A naturally beautiful American woman in her early 30s, warm sun-kissed complexion, long wavy brunette hair falling softly over her shoulders, wearing a fitted white ribbed-knit cropped tank top, high-waisted straight-leg light wash denim jeans with a slim black leather belt, clean white leather low-top sneakers, small black leather crossbody chain bag, dainty gold hoop earrings, round gold-frame sunglasses. She is smiling warmly while walking casually on a sunny upscale European-style pedestrian sidewalk, white-painted building facade with climbing green vines behind her. Soft warm afternoon sunlight, sharp focus, cinematic depth of field, 85mm lens, magazine editorial quality."
 
-Photography style: "${style}", bright, candid street style or clean indoor lifestyle, full-body or 3/4 length shot, magazine quality, DSLR.
-Aspect Ratio: "${ratio}".
+MANDATORY RULES:
+1. NEVER name the article topic in the prompt (NEVER say "strapless dress ideas" or "crop top outfit ideas")
+2. INSTEAD, describe ONE specific, concrete, fully-styled outfit inspired by the concept (e.g., "a white strapless cotton bustier paired with high-waisted wide-leg linen trousers and tan leather block-heel sandals")
+3. Always specify: fabric, exact color, garment name, fit/silhouette, + all accessories (shoes, bag, jewellery, sunglasses)
+4. Always specify the background scene in detail
+5. Always describe the model: age range, hair color/style, skin tone, pose/expression
 
-Example format: "A photorealistic fashion blogger portrait of a beautiful American woman in her mid-30s wearing a crisp white linen button-down shirt tucked into high-waisted distressed denim shorts, white sneakers, tortoiseshell sunglasses. She is walking down a sunny city sidewalk. Perfectly symmetrical face, detailed eyes, correct anatomy, perfect hands. ${style} photography, 85mm lens, natural lighting."
-
-Return STRICTLY as a JSON array:
+Return STRICTLY as a JSON array (no markdown, no explanation):
 [
-  { "sectionPosition": 1, "prompt": "..." }
+  { "sectionPosition": 1, "prompt": "..." },
+  { "sectionPosition": 2, "prompt": "..." }
 ]
 
-Article sections:
-${JSON.stringify(sections.map(s => ({ position: s.position, heading: s.heading, concept: s.concept, bodySnippet: s.body.slice(0, 300) })))}
+Article sections to generate prompts for:
+${JSON.stringify(sections.map(s => ({ position: s.position, heading: s.heading, concept: s.concept, bodySnippet: s.body.slice(0, 400) })))}
 `;
 
     const response = await model.generateContent({
@@ -402,6 +403,7 @@ ${JSON.stringify(sections.map(s => ({ position: s.position, heading: s.heading, 
 
     return JSON.parse(response.response.text()) as ImagePromptResult[];
   }
+
 
   async qualityCheckContent(article: ArticleContent, config: ArticleConfig): Promise<ContentQCResult> {
     const ai = await this.getClient();
