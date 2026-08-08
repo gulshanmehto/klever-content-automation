@@ -189,21 +189,30 @@ export default function TaskDetailPage() {
         }
 
         const { credentials, sections } = queueData;
+        const totalSections = queueData.total || 0;
+
         if (sections.length === 0) {
-           // All done! Advance task.
-           setClientGenerationStatus('All images generated. Advancing...');
-           await fetch(`/api/tasks/${taskId}/action`, { 
-             method: 'POST',
-             headers: { 'Content-Type': 'application/json' },
-             body: JSON.stringify({ action: 'FINISH_IMAGES' })
-           });
-           fetchTask();
-           return;
+          if (totalSections === 0) {
+            // No prompts have been saved yet — backend job is still generating them.
+            // Exit and let the polling interval re-trigger this effect when stage is ready.
+            setClientGenerationStatus('Waiting for image prompts to be prepared...');
+            return;
+          }
+          // All sections already have valid images — we are done!
+          setClientGenerationStatus('All images generated. Advancing...');
+          await fetch(`/api/tasks/${taskId}/action`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ action: 'FINISH_IMAGES' })
+          });
+          fetchTask();
+          return;
         }
 
         // 2. Loop through sections and generate via Cloudflare Flux-1-Schnell (server-side)
         let doneCount = queueData.done || 0;
-        const totalCount = queueData.total || 1;
+        const totalCount = totalSections || 1;
+
 
         for (let i = 0; i < sections.length; i++) {
           if (isCancelled) return;

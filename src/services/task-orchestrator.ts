@@ -422,7 +422,10 @@ export class TaskOrchestrator {
 
   // ─── Step 7: Generate Image Prompts ────────────────────────
   private async generateImagePrompts(): Promise<string> {
-    await this.updateStage('GENERATING_IMAGES');
+    // NOTE: Do NOT call updateStage('GENERATING_IMAGES') here at the top.
+    // The client polls for currentStage === 'GENERATING_IMAGES' to start generation.
+    // If we update the stage before saving prompts, the client will see 0 sections and
+    // immediately call FINISH_IMAGES, skipping image generation entirely.
     await this.log('STAGE_START', 'Generating image prompts');
 
     const task = await prisma.articleTask.findUnique({
@@ -455,7 +458,7 @@ export class TaskOrchestrator {
       task.imageRatio || '16:9',
     );
 
-    // Update sections with prompts
+    // Update sections with prompts FIRST before advancing stage
     for (const prompt of prompts) {
       const section = task.articleSections.find(s => s.position === prompt.sectionPosition);
       if (section) {
@@ -467,6 +470,10 @@ export class TaskOrchestrator {
     }
 
     await this.log('PROMPTS_GENERATED', `Generated ${prompts.length} image prompts with watermark: "${watermark.text}"`);
+
+    // Only NOW advance stage to GENERATING_IMAGES — prompts are fully saved in DB.
+    // The client will detect this stage change and start generating images.
+    await this.updateStage('GENERATING_IMAGES');
 
     return 'GENERATING_IMAGES';
   }
