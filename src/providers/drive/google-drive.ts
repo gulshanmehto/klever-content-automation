@@ -36,6 +36,16 @@ export class GoogleDriveProvider implements DriveProvider {
       });
       const folderId = response.data.id;
       if (!folderId) throw new Error('Failed to retrieve created folder ID');
+      
+      // Make folder accessible via link (anyone with link can view)
+      await drive.permissions.create({
+        fileId: folderId,
+        requestBody: {
+          role: 'reader',
+          type: 'anyone',
+        },
+      });
+
       return folderId;
     } catch (error) {
       console.error('Google Drive Folder creation failed:', error);

@@ -199,12 +199,7 @@ export default function TaskDetailPage() {
             return;
           }
           // All sections already have valid images — we are done!
-          setClientGenerationStatus('All images generated. Advancing...');
-          await fetch(`/api/tasks/${taskId}/action`, {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ action: 'FINISH_IMAGES' })
-          });
+          setClientGenerationStatus('All images generated. Please review and click "Approve Images" when ready.');
           fetchTask();
           return;
         }
@@ -260,14 +255,10 @@ export default function TaskDetailPage() {
           fetchTask();
         }
 
-        // Loop finished — advance to QC
+        // Loop finished — pause for review
         if (isCancelled) return;
-        setClientGenerationStatus('Generation complete. Advancing...');
-        await fetch(`/api/tasks/${taskId}/action`, {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ action: 'FINISH_IMAGES' })
-        });
+        setClientGenerationStatus('Generation complete. Please review and click "Approve Images" when ready.');
+        // We DO NOT auto-call FINISH_IMAGES anymore. Wait for user to click the button.
         fetchTask();
 
       } catch (err: any) {
@@ -532,7 +523,15 @@ export default function TaskDetailPage() {
         {activeTab === 'images' && <ImagesTab task={task} onRefresh={fetchTask} />}
         {activeTab === 'quality' && <QualityTab task={task} />}
         {activeTab === 'drive' && <DriveTab task={task} />}
-        {activeTab === 'wordpress' && <WordPressTab task={task} />}
+        {activeTab === 'wordpress' && <WordPressTab task={task} onPublish={async () => {
+          if (!confirm('Start uploading this article to WordPress?')) return;
+          await fetch(`/api/tasks/${task.id}/action`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ action: 'START_WORDPRESS_UPLOAD' })
+          });
+          fetchTask();
+        }} />}
         {activeTab === 'logs' && <LogsTab task={task} />}
       </div>
       <style>{`@keyframes spin { from { transform: rotate(0deg); } to { transform: rotate(360deg); } }`}</style>
@@ -1145,7 +1144,7 @@ function DriveTab({ task }: { task: TaskDetail }) {
 }
 
 // ─── WordPress Tab ─────────────────────────────────────────────
-function WordPressTab({ task }: { task: TaskDetail }) {
+function WordPressTab({ task, onPublish }: { task: TaskDetail, onPublish?: () => void }) {
   return (
     <div className="card">
       <div className="card-header"><h3 className="card-title">WordPress</h3></div>
@@ -1168,6 +1167,14 @@ function WordPressTab({ task }: { task: TaskDetail }) {
           <div className="empty-state" style={{ padding: 40 }}>
             <Newspaper size={28} className="text-muted" />
             <p className="text-muted mt-2">WordPress draft not created yet</p>
+            {task.currentStage === 'READY_FOR_WORDPRESS' && onPublish && (
+              <button 
+                className="btn btn-primary mt-4" 
+                onClick={onPublish}
+              >
+                <CheckCircle2 size={16} /> PUBLISH TO WORDPRESS
+              </button>
+            )}
           </div>
         )}
       </div>

@@ -34,6 +34,7 @@ model Website {
   driveParentFolderId    String?
   targetCountry          String   @default("US")
   targetAudience         String   @default("general")
+  customInstructions     String?
   defaultTone            String   @default("informative")
   defaultCategory        String?
   defaultImageStyle      String   @default("photorealistic")
@@ -55,6 +56,7 @@ model ArticleTask {
   requestedIdeaCount   Int
   targetCountry        String?
   targetAudience       String?
+  customInstructions   String?
   articleTone          String?
   category             String?
   wordCountTarget      Int?

@@ -30,8 +30,9 @@ export default function NewArticlePage() {
   const [competitorUrl2, setCompetitorUrl2] = useState('');
   const [competitorUrl3, setCompetitorUrl3] = useState('');
   const [targetCountry, setTargetCountry] = useState('');
-  const [targetAudience, setTargetAudience] = useState('');
-  const [articleTone, setArticleTone] = useState('');
+  const [targetAudience, setTargetAudience] = useState('general');
+  const [customInstructions, setCustomInstructions] = useState('');
+  const [articleTone, setArticleTone] = useState('informative');
   const [category, setCategory] = useState('');
   const [wordCountTarget, setWordCountTarget] = useState<number | ''>('');
   const [imageRatio, setImageRatio] = useState('');
@@ -96,6 +97,7 @@ export default function NewArticlePage() {
           competitorUrls,
           targetCountry,
           targetAudience,
+          customInstructions,
           articleTone,
           category: category || undefined,
           wordCountTarget: wordCountTarget || undefined,
@@ -336,7 +338,24 @@ export default function NewArticlePage() {
                   </select>
                 </div>
               </div>
-
+              </div>
+            {/* Custom Instructions */}
+            <div className="section-card" style={{ marginTop: 20 }}>
+              <div className="section-header" style={{ padding: '12px 16px', background: 'var(--bg-light)', borderBottom: '1px solid var(--border-light)', borderTopLeftRadius: 8, borderTopRightRadius: 8 }}>
+                <span className="section-heading" style={{ fontSize: '0.9rem', fontWeight: 600 }}>Additional Instructions (Optional)</span>
+              </div>
+              <div className="section-body" style={{ padding: 16 }}>
+                <div className="form-group mb-0">
+                  <label className="form-label text-muted" style={{ display: 'block', marginBottom: 8, fontSize: '0.85rem' }}>Provide any specific guidelines, tone requests, examples, or names to include in the article.</label>
+                  <textarea 
+                    className="form-input" 
+                    value={customInstructions} 
+                    onChange={(e) => setCustomInstructions(e.target.value)}
+                    style={{ minHeight: 100 }}
+                    placeholder="e.g. Include a mention of our CEO John Doe, keep it humorous, use British English..."
+                  />
+                </div>
+              </div>
             </div>
 
             {/* Checkboxes */}

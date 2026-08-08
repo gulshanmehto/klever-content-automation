@@ -324,6 +324,35 @@ export async function POST(
       return NextResponse.json({ success: true });
     }
 
+    // ─── ACTION: START_WORDPRESS_UPLOAD ───
+    if (action === 'START_WORDPRESS_UPLOAD') {
+      await prisma.articleTask.update({
+        where: { id: taskId },
+        data: {
+          status: 'PROCESSING',
+          currentStage: 'UPLOADING_TO_WORDPRESS',
+        },
+      });
+
+      await prisma.jobQueue.deleteMany({
+        where: { taskId, status: 'PENDING' },
+      });
+
+      await prisma.jobQueue.create({
+        data: {
+          taskId,
+          jobType: 'PIPELINE_STEP',
+          step: 'UPLOADING_TO_WORDPRESS',
+          payload: JSON.stringify({ taskId }),
+          status: 'PENDING',
+        },
+      });
+      await prisma.taskLog.create({
+        data: { articleTaskId: taskId, eventType: 'WP_UPLOAD_STARTED', message: 'Manual upload to WordPress started.' },
+      });
+      return NextResponse.json({ success: true });
+    }
+
     return NextResponse.json({ error: 'Invalid action' }, { status: 400 });
   } catch (error: any) {
     console.error('Task Action API Error:', error);

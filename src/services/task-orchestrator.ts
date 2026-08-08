@@ -304,6 +304,7 @@ export class TaskOrchestrator {
       requestedIdeaCount: task.requestedIdeaCount,
       wordCountTarget: task.wordCountTarget || undefined,
       category: task.category || undefined,
+      customInstructions: task.customInstructions || undefined,
     };
 
     const ideaResults = selectedIdeas.map(i => ({
@@ -350,6 +351,7 @@ export class TaskOrchestrator {
       requestedIdeaCount: task.requestedIdeaCount,
       wordCountTarget: task.wordCountTarget || undefined,
       category: task.category || undefined,
+      customInstructions: task.customInstructions || undefined,
     };
 
     // Create outline from stored ideas
@@ -627,7 +629,10 @@ export class TaskOrchestrator {
     }
 
     const updatedTask = await prisma.articleTask.findUnique({ where: { id: this.taskId } });
-    if (updatedTask?.sendToWordPress) return 'UPLOADING_TO_WORDPRESS';
+    if (updatedTask?.sendToWordPress) {
+      await this.updateStage('READY_FOR_WORDPRESS');
+      return 'WAIT_FOR_APPROVAL';
+    }
     return 'COMPLETE';
   }
 

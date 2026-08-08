@@ -238,10 +238,13 @@ ${JSON.stringify(ideas.map((id, idx) => ({ idx, concept: id.concept })))}
     const ai = await this.getClient();
     const model = ai.getGenerativeModel({ model: 'models/gemini-3.5-flash-lite' });
 
+    const customInstructionsText = config.customInstructions ? `\nCRITICAL CUSTOM INSTRUCTIONS:\n${config.customInstructions}\n` : '';
+
     const prompt = `
 Create a structured outline for an article on "${config.topic}".
 Target audience: ${config.targetAudience} in ${config.targetCountry}. Tone: ${config.tone}.
 We have chosen ${ideas.length} ideas.
+${customInstructionsText}
 
 Provide:
 1. A catch SEO-friendly title
@@ -299,9 +302,12 @@ ${JSON.stringify(ideas)}
     const ai = await this.getClient();
     const model = ai.getGenerativeModel({ model: 'models/gemini-3.5-flash-lite' });
 
+    const customInstructionsText = config.customInstructions ? `\nCRITICAL CUSTOM INSTRUCTIONS:\n${config.customInstructions}\n` : '';
+
     const prompt = `
 You are a senior fashion and lifestyle copywriter. Write a completely original, SEO-optimized article based on this outline.
 Topic: "${config.topic}". Tone: "${config.tone}". Target: "${config.targetAudience}".
+${customInstructionsText}
 
 Write:
 1. An engaging introduction paragraph (~100-150 words).
@@ -347,11 +353,21 @@ ${JSON.stringify(outline)}
     try {
       const startIndex = text.indexOf('{');
       const endIndex = text.lastIndexOf('}');
+      let parsed: ArticleContent;
       if (startIndex !== -1 && endIndex !== -1) {
         const cleanJson = text.substring(startIndex, endIndex + 1);
-        return JSON.parse(cleanJson) as ArticleContent;
+        parsed = JSON.parse(cleanJson) as ArticleContent;
+      } else {
+        parsed = JSON.parse(text) as ArticleContent;
       }
-      return JSON.parse(text) as ArticleContent;
+      
+      // Fallbacks in case LLM omits fields
+      if (!parsed.title) parsed.title = outline.title;
+      if (!parsed.slug) parsed.slug = outline.slug;
+      if (!parsed.introduction) parsed.introduction = outline.introductionPlan || '';
+      if (!parsed.conclusion) parsed.conclusion = outline.conclusionPlan || '';
+      
+      return parsed;
     } catch (e) {
       console.error('Failed to parse Gemini output direct, attempting text fallback extraction:', text);
       throw e;

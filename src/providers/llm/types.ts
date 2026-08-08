@@ -93,6 +93,7 @@ export interface ArticleConfig {
   targetCountry: string;
   targetAudience: string;
   tone: string;
+  customInstructions?: string | null;
   requestedIdeaCount: number;
   wordCountTarget?: number;
   category?: string;
