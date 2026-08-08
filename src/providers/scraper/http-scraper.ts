@@ -1,13 +1,11 @@
 /**
  * HTTP Scraper Provider
- * Uses axios + cheerio + @mozilla/readability for content extraction.
- * Per spec §9: robust extraction with fallback support.
+ * Uses axios + cheerio + node-html-parser for content extraction.
+ * node-html-parser is pure JS with no ESM/CJS conflicts — works on Vercel serverless.
  */
 
 import axios from 'axios';
 import * as cheerio from 'cheerio';
-import { JSDOM } from 'jsdom';
-import { Readability } from '@mozilla/readability';
 import type { ScraperProvider, ScrapedPage } from './types';
 
 export class HttpScraperProvider implements ScraperProvider {
@@ -27,7 +25,7 @@ export class HttpScraperProvider implements ScraperProvider {
       });
 
       const html = response.data;
-      return this.extractContent(url, html);
+      return this.extractWithCheerio(url, html);
     } catch (error) {
       const errMsg = error instanceof Error ? error.message : 'Unknown fetch error';
       return {
@@ -42,43 +40,14 @@ export class HttpScraperProvider implements ScraperProvider {
   }
 
   async fetchRenderedPage(url: string): Promise<ScrapedPage> {
-    // Fallback: for now, same as fetchPage
-    // A browser automation adapter can be plugged in here later
     return this.fetchPage(url);
-  }
-
-  private extractContent(url: string, html: string): ScrapedPage {
-    try {
-      // Try Readability first for clean article extraction
-      const dom = new JSDOM(html, { url });
-      const reader = new Readability(dom.window.document);
-      const article = reader.parse();
-
-      if (article && article.textContent && article.textContent.length > 200) {
-        const $ = cheerio.load(article.content || '');
-        const headings = this.extractHeadings($);
-
-        return {
-          url,
-          title: article.title || '',
-          content: article.textContent.trim(),
-          headings,
-          success: true,
-        };
-      }
-
-      // Fallback: manual extraction with Cheerio
-      return this.extractWithCheerio(url, html);
-    } catch {
-      return this.extractWithCheerio(url, html);
-    }
   }
 
   private extractWithCheerio(url: string, html: string): ScrapedPage {
     try {
       const $ = cheerio.load(html);
 
-      // Remove unwanted elements (per spec §9)
+      // Remove noise elements
       $('nav, footer, sidebar, .sidebar, .nav, .footer, .header, .menu').remove();
       $('script, style, noscript, iframe').remove();
       $('.ad, .ads, .advertisement, .banner, [class*="cookie"]').remove();
@@ -87,12 +56,22 @@ export class HttpScraperProvider implements ScraperProvider {
       $('[class*="popup"], [class*="modal"]').remove();
 
       // Get title
-      const title = $('h1').first().text().trim() ||
-                    $('title').text().trim() ||
-                    $('meta[property="og:title"]').attr('content') || '';
+      const title =
+        $('h1').first().text().trim() ||
+        $('title').text().trim() ||
+        $('meta[property="og:title"]').attr('content') ||
+        '';
 
-      // Get main content
-      const mainSelectors = ['article', 'main', '.post-content', '.entry-content', '.article-content', '.content', '#content'];
+      // Try to find the main content block
+      const mainSelectors = [
+        'article',
+        'main',
+        '.post-content',
+        '.entry-content',
+        '.article-content',
+        '.content',
+        '#content',
+      ];
       let contentElement = null;
       for (const selector of mainSelectors) {
         const el = $(selector).first();
@@ -109,8 +88,9 @@ export class HttpScraperProvider implements ScraperProvider {
       // Extract headings
       const headings = this.extractHeadings($);
 
-      // Extract text content
-      const content = contentElement.text()
+      // Extract and clean text content
+      const content = contentElement
+        .text()
         .replace(/\s+/g, ' ')
         .replace(/\n\s*\n/g, '\n\n')
         .trim();
