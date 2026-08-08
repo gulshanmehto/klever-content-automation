@@ -18,12 +18,12 @@ export class GeminiLLMProvider implements LLMProvider {
   private async getApiKey(): Promise<string> {
     // Check Settings table in DB first
     const dbSetting = await prisma.setting.findUnique({ where: { key: 'google_ai_api_key' } });
-    if (dbSetting?.value) return dbSetting.value;
+    if (dbSetting?.value) return dbSetting.value.trim().replace(/^"|"$/g, '');
 
     // Fallback to environment variable
     const envKey = process.env.GOOGLE_AI_API_KEY;
     if (!envKey) throw new Error('Google AI Studio API Key is not set in Settings or .env');
-    return envKey;
+    return envKey.trim().replace(/^"|"$/g, '');
   }
 
   private async getClient(): Promise<GoogleGenerativeAI> {
@@ -33,7 +33,7 @@ export class GeminiLLMProvider implements LLMProvider {
 
   async analyzeCompetitors(contents: Array<{ url: string; text: string }>): Promise<CompetitorAnalysis[]> {
     const ai = await this.getClient();
-    const model = ai.getGenerativeModel({ model: 'models/gemini-1.5-flash' });
+    const model = ai.getGenerativeModel({ model: 'models/gemini-3.5-flash-lite' });
 
     const results: CompetitorAnalysis[] = [];
 
@@ -96,7 +96,7 @@ ${content.text.substring(0, 15000)}
 
   async normalizeAndDeduplicateIdeas(ideas: RawIdea[], topic: string): Promise<NormalizedIdeaResult[]> {
     const ai = await this.getClient();
-    const model = ai.getGenerativeModel({ model: 'models/gemini-1.5-flash' });
+    const model = ai.getGenerativeModel({ model: 'models/gemini-3.5-flash-lite' });
 
     const prompt = `
 You are a content editor. We have extracted multiple fashion/article ideas from different competitor URLs.
@@ -153,7 +153,7 @@ ${JSON.stringify(ideas)}
 
   async selectIdeas(ideas: NormalizedIdeaResult[], count: number, topic: string): Promise<NormalizedIdeaResult[]> {
     const ai = await this.getClient();
-    const model = ai.getGenerativeModel({ model: 'models/gemini-1.5-flash' });
+    const model = ai.getGenerativeModel({ model: 'models/gemini-3.5-flash-lite' });
 
     const prompt = `
 You are a curator. We need exactly ${count} ideas for an article about "${topic}".
@@ -205,7 +205,7 @@ ${JSON.stringify(ideas.map((id, idx) => ({ idx, concept: id.concept, attributes:
 
   async reorderIdeas(ideas: NormalizedIdeaResult[], topic: string): Promise<NormalizedIdeaResult[]> {
     const ai = await this.getClient();
-    const model = ai.getGenerativeModel({ model: 'models/gemini-1.5-flash' });
+    const model = ai.getGenerativeModel({ model: 'models/gemini-3.5-flash-lite' });
 
     const prompt = `
 We are publishing an article about "${topic}".
@@ -236,7 +236,7 @@ ${JSON.stringify(ideas.map((id, idx) => ({ idx, concept: id.concept })))}
 
   async createOutline(ideas: NormalizedIdeaResult[], config: ArticleConfig): Promise<ArticleOutline> {
     const ai = await this.getClient();
-    const model = ai.getGenerativeModel({ model: 'models/gemini-1.5-flash' });
+    const model = ai.getGenerativeModel({ model: 'models/gemini-3.5-flash-lite' });
 
     const prompt = `
 Create a structured outline for an article on "${config.topic}".
@@ -297,7 +297,7 @@ ${JSON.stringify(ideas)}
 
   async writeArticle(outline: ArticleOutline, config: ArticleConfig): Promise<ArticleContent> {
     const ai = await this.getClient();
-    const model = ai.getGenerativeModel({ model: 'models/gemini-1.5-flash' });
+    const model = ai.getGenerativeModel({ model: 'models/gemini-3.5-flash-lite' });
 
     const prompt = `
 You are a senior fashion and lifestyle copywriter. Write a completely original, SEO-optimized article based on this outline.
@@ -365,7 +365,7 @@ ${JSON.stringify(outline)}
     ratio: string,
   ): Promise<ImagePromptResult[]> {
     const ai = await this.getClient();
-    const model = ai.getGenerativeModel({ model: 'models/gemini-1.5-flash' });
+    const model = ai.getGenerativeModel({ model: 'models/gemini-3.5-flash-lite' });
 
     const prompt = `
 You are a professional fashion photography art director creating AI image prompts for a US women's fashion blog.
@@ -405,7 +405,7 @@ ${JSON.stringify(sections.map(s => ({ position: s.position, heading: s.heading, 
 
   async qualityCheckContent(article: ArticleContent, config: ArticleConfig): Promise<ContentQCResult> {
     const ai = await this.getClient();
-    const model = ai.getGenerativeModel({ model: 'models/gemini-1.5-flash' });
+    const model = ai.getGenerativeModel({ model: 'models/gemini-3.5-flash-lite' });
 
     const prompt = `
 Perform a content quality check on this generated article.
@@ -444,7 +444,7 @@ ${JSON.stringify(article)}
   ): Promise<ImageQCResult> {
     const ai = await this.getClient();
     // Use gemini-3.5-flash-lite vision model
-    const model = ai.getGenerativeModel({ model: 'models/gemini-1.5-flash' });
+    const model = ai.getGenerativeModel({ model: 'models/gemini-3.5-flash-lite' });
 
     const prompt = `
 Analyze this generated image. Compare it to the article heading: "${section.heading}" and normalized concept: "${section.concept}".
