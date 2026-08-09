@@ -6,10 +6,15 @@ import { TaskOrchestrator } from '@/services/task-orchestrator';
 // Called by the Vercel Cron (vercel.json) every minute.
 // Processes ONE pending job per invocation.
 export async function GET(req: Request) {
-  // Optional: protect with a secret token
-  const secret = req.headers.get('x-cron-secret');
-  if (process.env.CRON_SECRET && secret !== process.env.CRON_SECRET) {
-    return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+  // Protect with a secret token (Vercel Cron sends it via Authorization header)
+  const authHeader = req.headers.get('authorization');
+  const secretHeader = req.headers.get('x-cron-secret');
+  
+  if (process.env.CRON_SECRET) {
+    const expectedAuth = `Bearer ${process.env.CRON_SECRET}`;
+    if (authHeader !== expectedAuth && secretHeader !== process.env.CRON_SECRET) {
+      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+    }
   }
 
   // Find next pending job (FIFO)
