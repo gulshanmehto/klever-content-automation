@@ -69,22 +69,8 @@ export class GeminiImagenProvider implements ImageProvider {
           continue;
         }
 
-        console.error('Imagen generation failed, falling back to SVG placeholder:', errorMsg);
-        
-        // Fallback SVG image in case of API issues/billing limitations
-        const width = options.width || 1024;
-        const height = options.height || 576;
-        const svg = `<svg xmlns="http://www.w3.org/2000/svg" width="${width}" height="${height}">
-          <rect width="100%" height="100%" fill="#eef2ff"/>
-          <text x="50%" y="50%" text-anchor="middle" font-family="Arial" font-size="16" fill="#4f46e5">${prompt.substring(0, 50)}...</text>
-        </svg>`;
-
-        return {
-          imageBase64: Buffer.from(svg).toString('base64'),
-          mimeType: 'image/svg+xml',
-          provider: 'imagen-fallback',
-          model: 'imagen-3.0',
-        };
+        console.error('Imagen generation failed:', errorMsg);
+        throw new Error(errorMsg || 'Failed to generate image');
       }
     }
 
