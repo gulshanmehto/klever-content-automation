@@ -367,7 +367,7 @@ ${JSON.stringify(outline)}
 `;
 
     const response = await model.generateContent({
-      contents: [{ role: 'user', parts: [{ text: prompt }] }],
+      contents: [{ role: 'user', parts: [{ text: systemPrompt }] }],
       generationConfig: { responseMimeType: 'application/json' },
     });
 

@@ -12,6 +12,7 @@ interface Website {
   targetAudience: string;
   defaultTone: string;
   defaultCategory: string | null;
+  defaultWriterProfile: string | null;
   defaultImageStyle: string;
   defaultImageRatio: string;
 }
