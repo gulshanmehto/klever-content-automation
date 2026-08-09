@@ -7,6 +7,7 @@ import type { WordPressProvider } from './wordpress/types';
 import { GeminiLLMProvider } from './llm/gemini';
 import { GeminiImagenProvider } from './image/imagen';
 import { CloudflareWorkersAIImageProvider } from './image/cloudflare-ai';
+import { VertexAIImageProvider } from './image/vertex-ai';
 import { HttpScraperProvider } from './scraper/http-scraper';
 import { GoogleDriveProvider } from './drive/google-drive';
 import { WPRestProvider } from './wordpress/wp-rest';
@@ -26,9 +27,17 @@ export function getLLMProvider(): LLMProvider {
 
 export async function getImageProvider(): Promise<ImageProvider> {
   const { prisma } = await import('@/lib/db');
-  const apiTokenSetting = await prisma.setting.findUnique({ where: { key: 'cloudflare_api_token' } });
+  
+  // Primary: Google Cloud Vertex AI (Imagen 4.0) if configured
+  if (process.env.GCP_PROJECT_ID && process.env.GCP_CLIENT_EMAIL && process.env.GCP_PRIVATE_KEY) {
+    if (!imageProvider || imageProvider.constructor.name !== 'VertexAIImageProvider') {
+      imageProvider = new VertexAIImageProvider();
+    }
+    return imageProvider;
+  }
 
-  // Use Cloudflare if token is in DB or ENV, otherwise fallback
+  // Fallbacks: Cloudflare or Gemini AI Studio
+  const apiTokenSetting = await prisma.setting.findUnique({ where: { key: 'cloudflare_api_token' } });
   if (process.env.CLOUDFLARE_API_TOKEN || apiTokenSetting?.value) {
     if (!imageProvider || imageProvider.constructor.name !== 'CloudflareWorkersAIImageProvider') {
       imageProvider = new CloudflareWorkersAIImageProvider();
