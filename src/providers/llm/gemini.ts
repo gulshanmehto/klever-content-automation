@@ -342,7 +342,12 @@ Topic: "${config.topic}". Tone: "${config.tone}". Target: "${config.targetAudien
 ${customInstructionsText}
 
 Write:
-1. An engaging introduction paragraph (~100-150 words).
+1. An engaging introduction (~150 words) that follows these guidelines:
+   - Hook the reader with a relatable question or statement about the topic.
+   - Explain the core value or context (why this style/item/event matters).
+   - Provide brief, actionable styling advice (e.g., fabrics, pairings, or fit).
+   - End with a smooth transition (e.g., "Below, you'll find XX [topic] outfit ideas...").
+   - CRITICAL: Break the introduction into 3 or 4 very small, short paragraphs (separated by \\n\\n) to ensure it is easy to read on mobile devices.
 2. A detailed body section for EVERY item in the outline. For each item write a substantial descriptive paragraph (~80-120 words) detailing the look, items, styling advice.
 3. Suggest a highly detailed image prompt for each section that represents the idea visually.
 4. An alt text suggestion.
@@ -362,7 +367,7 @@ Return strictly as a JSON object matching this structure:
 {
   "title": "${outline.title}",
   "slug": "${outline.slug}",
-  "introduction": "Full intro paragraph...",
+  "introduction": "Full intro text broken into small paragraphs separated by \\n\\n...",
   "sections": [
     {
       "position": 1,

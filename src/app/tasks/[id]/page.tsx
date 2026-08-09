@@ -216,8 +216,8 @@ export default function TaskDetailPage() {
           setClientGenerationStatus(`Generating image ${doneCount + 1} of ${totalCount}: ${section.heading}...`);
 
           try {
-            // Call the server-side Cloudflare Flux-1-Schnell proxy
-            const cfRes = await fetch('/api/proxy/cloudflare', {
+            // Call the server-side Gemini 2.5 Flash Image proxy
+            const cfRes = await fetch('/api/proxy/gemini', {
               method: 'POST',
               headers: { 'Content-Type': 'application/json' },
               body: JSON.stringify({
@@ -236,11 +236,11 @@ export default function TaskDetailPage() {
               body: JSON.stringify({
                 sectionId: section.id,
                 prompt: section.prompt,
-                provider: cfData.provider || 'cloudflare-ai',
-                model: cfData.model || '@cf/black-forest-labs/flux-1-schnell',
+                provider: cfData.provider || 'gemini',
+                model: cfData.model || 'models/gemini-2.5-flash-image',
                 mimeType: cfData.mimeType || 'image/jpeg',
                 imageBase64: cfData.imageBase64,
-                error: cfData.error || (!cfRes.ok ? 'Cloudflare API Failed' : null),
+                error: cfData.error || (!cfRes.ok ? 'Gemini API Failed' : null),
               })
             });
           } catch (err: any) {
