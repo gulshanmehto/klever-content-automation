@@ -37,6 +37,7 @@ model Website {
   customInstructions     String?
   defaultTone            String   @default("informative")
   defaultCategory        String?
+  defaultWriterProfile   String?  @default("standard")
   defaultImageStyle      String   @default("photorealistic")
   defaultImageRatio      String   @default("16:9")
   watermarkText          String   @default("")
@@ -58,6 +59,7 @@ model ArticleTask {
   targetAudience       String?
   customInstructions   String?
   articleTone          String?
+  writerProfile        String?  @default("standard")
   category             String?
   wordCountTarget      Int?
   imageRatio           String?

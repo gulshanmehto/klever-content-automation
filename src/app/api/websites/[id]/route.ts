@@ -47,6 +47,7 @@ const updateWebsiteSchema = z.object({
   targetCountry: z.string().optional(),
   targetAudience: z.string().optional(),
   defaultTone: z.string().optional(),
+  defaultWriterProfile: z.string().optional(),
   defaultCategory: z.string().optional().nullable(),
   defaultImageStyle: z.string().optional(),
   defaultImageRatio: z.string().optional(),
@@ -68,7 +69,7 @@ export async function PATCH(
     // Copy simple fields
     const simpleFields = [
       'name', 'domain', 'wpBaseUrl', 'driveParentFolderId',
-      'targetCountry', 'targetAudience', 'defaultTone', 'defaultCategory',
+      'targetCountry', 'targetAudience', 'defaultTone', 'defaultWriterProfile', 'defaultCategory',
       'defaultImageStyle', 'defaultImageRatio', 'watermarkText', 'watermarkPlacement',
     ];
 

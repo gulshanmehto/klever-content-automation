@@ -13,6 +13,7 @@ interface Website {
   targetCountry: string;
   targetAudience: string;
   defaultTone: string;
+  defaultWriterProfile: string;
   watermarkText: string;
   createdAt: string;
   _count: { tasks: number };
@@ -33,6 +34,7 @@ export default function WebsitesPage() {
   const [targetCountry, setTargetCountry] = useState('US');
   const [targetAudience, setTargetAudience] = useState('general');
   const [defaultTone, setDefaultTone] = useState('informative');
+  const [defaultWriterProfile, setDefaultWriterProfile] = useState('standard');
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState('');
 
@@ -71,6 +73,7 @@ export default function WebsitesPage() {
           targetCountry,
           targetAudience,
           defaultTone,
+          defaultWriterProfile,
         }),
       });
 
@@ -168,10 +171,22 @@ export default function WebsitesPage() {
                 <div className="form-group">
                   <label className="form-label">Default Tone</label>
                   <select className="form-select" value={defaultTone} onChange={(e) => setDefaultTone(e.target.value)}>
-                    <option value="informative">Informative</option>
-                    <option value="casual">Casual</option>
-                    <option value="professional">Professional</option>
-                    <option value="friendly">Friendly</option>
+                    <option value="informative">Informative / Professional</option>
+                    <option value="conversational">Conversational / Friendly</option>
+                    <option value="humorous">Humorous / Witty</option>
+                    <option value="persuasive">Persuasive / Sales</option>
+                    <option value="inspirational">Inspirational / Motivating</option>
+                  </select>
+                </div>
+                
+                <div className="form-group">
+                  <label className="form-label">Default Writer Profile</label>
+                  <select className="form-select" value={defaultWriterProfile} onChange={(e) => setDefaultWriterProfile(e.target.value)}>
+                    <option value="standard">Standard (Informative)</option>
+                    <option value="aria_wyn">Aria Wyn (Calm & Minimalist)</option>
+                    <option value="fashion_mag_pro">Pro Fashion Magazine Writer</option>
+                    <option value="trendy_influencer">Trendy Social Media Influencer</option>
+                    <option value="fashion_enthusiast">Passionate Fashion Enthusiast</option>
                   </select>
                 </div>
               </div>

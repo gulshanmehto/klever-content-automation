@@ -31,6 +31,7 @@ interface WebsiteDetail {
   targetCountry: string;
   targetAudience: string;
   defaultTone: string;
+  defaultWriterProfile: string;
   defaultCategory: string | null;
   defaultImageStyle: string;
   defaultImageRatio: string;
@@ -68,6 +69,7 @@ export default function WebsiteDetailPage() {
   const [targetCountry, setTargetCountry] = useState('');
   const [targetAudience, setTargetAudience] = useState('');
   const [defaultTone, setDefaultTone] = useState('');
+  const [defaultWriterProfile, setDefaultWriterProfile] = useState('');
   const [defaultImageStyle, setDefaultImageStyle] = useState('');
   const [defaultImageRatio, setDefaultImageRatio] = useState('');
   const [contentSaving, setContentSaving] = useState(false);
@@ -93,6 +95,7 @@ export default function WebsiteDetailPage() {
         setTargetCountry(w.targetCountry || 'US');
         setTargetAudience(w.targetAudience || 'general');
         setDefaultTone(w.defaultTone || 'informative');
+        setDefaultWriterProfile(w.defaultWriterProfile || 'standard');
         setDefaultImageStyle(w.defaultImageStyle || 'photorealistic');
         setDefaultImageRatio(w.defaultImageRatio || '16:9');
         setDriveParentFolderId(w.driveParentFolderId || '');
@@ -164,7 +167,7 @@ export default function WebsiteDetailPage() {
       const res = await fetch(`/api/websites/${websiteId}`, {
         method: 'PATCH',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ name, domain, watermarkText, targetCountry, targetAudience, defaultTone, defaultImageStyle, defaultImageRatio }),
+        body: JSON.stringify({ name, domain, watermarkText, targetCountry, targetAudience, defaultTone, defaultWriterProfile, defaultImageStyle, defaultImageRatio }),
       });
       if (!res.ok) {
         const d = await res.json();
@@ -456,6 +459,17 @@ export default function WebsiteDetailPage() {
                     <option value="conversational">Conversational</option>
                   </select>
                 </div>
+              </div>
+
+              <div className="form-group" style={{ marginBottom: 16 }}>
+                <label className="form-label">Default Writer Profile</label>
+                <select className="form-select" value={defaultWriterProfile} onChange={e => setDefaultWriterProfile(e.target.value)}>
+                  <option value="standard">Standard (Informative)</option>
+                  <option value="aria_wyn">Aria Wyn (Calm & Minimalist)</option>
+                  <option value="fashion_mag_pro">Pro Fashion Magazine Writer</option>
+                  <option value="trendy_influencer">Trendy Social Media Influencer</option>
+                  <option value="fashion_enthusiast">Passionate Fashion Enthusiast</option>
+                </select>
               </div>
 
               <div className="form-row" style={{ marginBottom: 20 }}>

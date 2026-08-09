@@ -1,5 +1,6 @@
 import { GoogleGenerativeAI } from '@google/generative-ai';
 import { prisma } from '@/lib/db';
+import { WRITER_PROFILES } from './profiles';
 import type {
   LLMProvider,
   CompetitorAnalysis,
@@ -240,8 +241,13 @@ ${JSON.stringify(ideas.map((id, idx) => ({ idx, concept: id.concept })))}
 
     const customInstructionsText = config.customInstructions ? `\nCRITICAL CUSTOM INSTRUCTIONS:\n${config.customInstructions}\n` : '';
 
-    const prompt = `
-Create a structured outline for an article on "${config.topic}".
+    const writerProfileStr = config.writerProfile 
+      ? WRITER_PROFILES[config.writerProfile]?.systemPrompt 
+      : WRITER_PROFILES['standard'].systemPrompt;
+
+    let systemPrompt = `You are a professional content strategist and outlining expert.
+${writerProfileStr ? `\nWRITER PROFILE / TONE DIRECTIVES:\n${writerProfileStr}\n` : ''}
+We are creating a high-quality article for a target audience.
 Target audience: ${config.targetAudience} in ${config.targetCountry}. Tone: ${config.tone}.
 We have chosen ${ideas.length} ideas.
 ${customInstructionsText}
@@ -272,7 +278,7 @@ ${JSON.stringify(ideas)}
 `;
 
     const response = await model.generateContent({
-      contents: [{ role: 'user', parts: [{ text: prompt }] }],
+      contents: [{ role: 'user', parts: [{ text: systemPrompt }] }],
       generationConfig: { responseMimeType: 'application/json' },
     });
 
@@ -304,8 +310,24 @@ ${JSON.stringify(ideas)}
 
     const customInstructionsText = config.customInstructions ? `\nCRITICAL CUSTOM INSTRUCTIONS:\n${config.customInstructions}\n` : '';
 
-    const prompt = `
-You are a senior fashion and lifestyle copywriter. Write a completely original, SEO-optimized article based on this outline.
+    const writerProfileStr = config.writerProfile 
+      ? WRITER_PROFILES[config.writerProfile]?.systemPrompt 
+      : WRITER_PROFILES['standard'].systemPrompt;
+
+    // Build the system prompt
+    let systemPrompt = `You are an expert article writer.
+
+CRITICAL HUMAN WRITING RULES (AVOID AI TROPES):
+- NEVER use common AI vocabulary: delve, tapestry, testament, beacon, pivotal, landscape, navigate, realm, symphony, utilize, showcase, elevate, unveil, embrace, resonate.
+- AVOID negative parallelisms ("Not just X, but also Y", "Not X, but Y"). Use direct statements instead.
+- AVOID the "Rule of Three" (listing exactly three adjectives or examples repeatedly).
+- Do NOT overuse boldface for emphasis. 
+- Use standard sentence structures, including basic copulatives ("is" / "are"), rather than constantly varying sentence structures artificially.
+- Do not use emoji for formatting. Use standard markdown.
+- Do not output collaborative filler like "Certainly! Here is the article..." or "In conclusion". Just write the content.
+- Keep the writing natural and human-like.
+
+${writerProfileStr ? `\nWRITER PROFILE / TONE DIRECTIVES:\n${writerProfileStr}\n` : ''}
 Topic: "${config.topic}". Tone: "${config.tone}". Target: "${config.targetAudience}".
 ${customInstructionsText}
 

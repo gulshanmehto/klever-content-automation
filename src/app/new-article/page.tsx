@@ -33,6 +33,7 @@ export default function NewArticlePage() {
   const [targetAudience, setTargetAudience] = useState('general');
   const [customInstructions, setCustomInstructions] = useState('');
   const [articleTone, setArticleTone] = useState('informative');
+  const [writerProfile, setWriterProfile] = useState('standard');
   const [category, setCategory] = useState('');
   const [wordCountTarget, setWordCountTarget] = useState<number | ''>('');
   const [imageRatio, setImageRatio] = useState('');
@@ -67,6 +68,7 @@ export default function NewArticlePage() {
       setTargetCountry(website.targetCountry);
       setTargetAudience(website.targetAudience);
       setArticleTone(website.defaultTone);
+      setWriterProfile(website.defaultWriterProfile || 'standard');
       setCategory(website.defaultCategory || '');
       setImageStyle(website.defaultImageStyle);
       setImageRatio(website.defaultImageRatio);
@@ -99,6 +101,7 @@ export default function NewArticlePage() {
           targetAudience,
           customInstructions,
           articleTone,
+          writerProfile,
           category: category || undefined,
           wordCountTarget: wordCountTarget || undefined,
           imageRatio,
@@ -307,6 +310,24 @@ export default function NewArticlePage() {
                     onChange={(e) => setCategory(e.target.value)}
                     placeholder="Fashion, Tech, etc."
                   />
+                </div>
+              </div>
+              
+              <div className="form-row">
+                <div className="form-group">
+                  <label className="form-label" htmlFor="writerProfile">Writer Profile</label>
+                  <select
+                    id="writerProfile"
+                    className="form-select"
+                    value={writerProfile}
+                    onChange={(e) => setWriterProfile(e.target.value)}
+                  >
+                    <option value="standard">Standard (Informative)</option>
+                    <option value="aria_wyn">Aria Wyn (Calm & Minimalist)</option>
+                    <option value="fashion_mag_pro">Pro Fashion Magazine Writer</option>
+                    <option value="trendy_influencer">Trendy Social Media Influencer</option>
+                    <option value="fashion_enthusiast">Passionate Fashion Enthusiast</option>
+                  </select>
                 </div>
               </div>
 
