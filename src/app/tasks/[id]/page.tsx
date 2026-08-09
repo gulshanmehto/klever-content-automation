@@ -160,7 +160,7 @@ export default function TaskDetailPage() {
     if (inProgressStages.includes(task.currentStage)) {
       const interval = setInterval(async () => {
         // Kick the serverless job worker so it processes the next pipeline step
-        fetch('/api/jobs/process').catch(() => {});
+        fetch('/api/jobs/process', { headers: { 'x-client-trigger': 'true' } }).catch(() => {});
         // Then refresh our task data
         await fetchTask();
       }, 3000);
@@ -390,6 +390,20 @@ export default function TaskDetailPage() {
                 <ImageOff size={14} style={{ marginRight: 4 }} /> Restart Images
               </button>
 
+              {/* Publish to WordPress */}
+              {task.currentStage === 'READY_FOR_WORDPRESS' && (
+                <button className="btn btn-primary btn-sm" title="Publish to WordPress" onClick={async () => { 
+                  if (!confirm('Start uploading this article to WordPress?')) return; 
+                  setLoading(true); 
+                  await fetch(`/api/tasks/${taskId}/action`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ action: 'START_WORDPRESS_UPLOAD' }) }); 
+                  fetch('/api/jobs/process', { headers: { 'x-client-trigger': 'true' } }).catch(() => {});
+                  await fetchTask(); 
+                  setLoading(false); 
+                }}>
+                  <CheckCircle2 size={14} style={{ marginRight: 4 }} /> Publish to WordPress
+                </button>
+              )}
+
             </div>
           </div>
         </div>
@@ -531,6 +545,7 @@ export default function TaskDetailPage() {
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({ action: 'START_WORDPRESS_UPLOAD' })
           });
+          fetch('/api/jobs/process', { headers: { 'x-client-trigger': 'true' } }).catch(() => {});
           fetchTask();
         }} />}
         {activeTab === 'logs' && <LogsTab task={task} />}

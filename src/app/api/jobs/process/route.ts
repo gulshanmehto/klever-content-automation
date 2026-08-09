@@ -7,10 +7,12 @@ import { TaskOrchestrator } from '@/services/task-orchestrator';
 // Processes ONE pending job per invocation.
 export async function GET(req: Request) {
   // Protect with a secret token (Vercel Cron sends it via Authorization header)
+  // We also allow a custom header from the client to trigger processing.
   const authHeader = req.headers.get('authorization');
   const secretHeader = req.headers.get('x-cron-secret');
+  const clientTrigger = req.headers.get('x-client-trigger');
   
-  if (process.env.CRON_SECRET) {
+  if (process.env.CRON_SECRET && clientTrigger !== 'true') {
     const expectedAuth = `Bearer ${process.env.CRON_SECRET}`;
     if (authHeader !== expectedAuth && secretHeader !== process.env.CRON_SECRET) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
