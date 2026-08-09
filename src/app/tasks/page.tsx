@@ -207,11 +207,26 @@ export default function TasksPage() {
                         {getWpStatus(task)}
                       </span>
                     </td>
-                    <td>
+                    <td style={{ display: 'flex', gap: '8px', alignItems: 'center' }}>
                       <Link href={`/tasks/${task.id}`} className="btn btn-ghost btn-sm">
                         <ExternalLink size={14} />
                         View
                       </Link>
+                      {task.currentStage === 'IDEAS_READY_FOR_REVIEW' && (
+                        <Link href={`/tasks/${task.id}?tab=ideas`} className="btn btn-primary btn-sm">
+                          Review Ideas
+                        </Link>
+                      )}
+                      {task.currentStage === 'READY_FOR_REVIEW' && (
+                        <Link href={`/tasks/${task.id}?tab=article`} className="btn btn-primary btn-sm">
+                          Review Article
+                        </Link>
+                      )}
+                      {task.currentStage === 'READY_FOR_WORDPRESS' && (
+                        <Link href={`/tasks/${task.id}?tab=wordpress`} className="btn btn-primary btn-sm">
+                          Post to WP
+                        </Link>
+                      )}
                     </td>
                   </tr>
                 ))}

@@ -53,7 +53,7 @@ export class MockLLMProvider implements LLMProvider {
     }));
   }
 
-  async selectIdeas(ideas: NormalizedIdeaResult[], count: number): Promise<NormalizedIdeaResult[]> {
+  async selectIdeas(ideas: NormalizedIdeaResult[], count: number, topic: string, customInstruction?: string): Promise<NormalizedIdeaResult[]> {
     await this.delay(1000);
     return ideas.slice(0, count);
   }

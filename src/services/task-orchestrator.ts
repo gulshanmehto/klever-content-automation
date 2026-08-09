@@ -254,7 +254,11 @@ export class TaskOrchestrator {
     }));
 
     // Select requested number
-    const selected = await llm.selectIdeas(ideaResults, task.requestedIdeaCount, task.topic);
+    const customInstruction = task.ideaFeedback 
+      ? `USER FEEDBACK FROM PREVIOUS ATTEMPT: ${task.ideaFeedback}\nPlease heavily incorporate this feedback when selecting ideas.`
+      : undefined;
+
+    const selected = await llm.selectIdeas(ideaResults, task.requestedIdeaCount, task.topic, customInstruction);
     await this.log('IDEAS_SELECTED', `Selected ${selected.length}/${ideaResults.length} ideas (requested: ${task.requestedIdeaCount})`);
 
     // Smart reorder
@@ -279,7 +283,11 @@ export class TaskOrchestrator {
       }
     }
 
-    return 'BUILDING_OUTLINE';
+    // Move to idea review stage — wait for user approval
+    await this.updateStage('IDEAS_READY_FOR_REVIEW');
+    await this.log('WAITING_FOR_IDEA_REVIEW', 'Ideas generated and reordered. Waiting for user approval.');
+
+    return 'WAIT_FOR_APPROVAL'; // Special: don't auto-continue
   }
 
   // ─── Step 5: Build Outline ─────────────────────────────────

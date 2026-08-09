@@ -152,13 +152,14 @@ ${JSON.stringify(ideas)}
     }
   }
 
-  async selectIdeas(ideas: NormalizedIdeaResult[], count: number, topic: string): Promise<NormalizedIdeaResult[]> {
+  async selectIdeas(ideas: NormalizedIdeaResult[], count: number, topic: string, customInstruction?: string): Promise<NormalizedIdeaResult[]> {
     const ai = await this.getClient();
     const model = ai.getGenerativeModel({ model: 'models/gemini-3.5-flash-lite' });
 
     const prompt = `
 You are a curator. We need exactly ${count} ideas for an article about "${topic}".
 We have ${ideas.length} unique ideas available.
+${customInstruction ? `\n${customInstruction}\n` : ''}
 
 Select the best ${count} ideas that provide the best variety, match search intent, and have the highest quality.
 If we have fewer unique ideas than requested, generate additional original ideas to make the total exactly ${count}.

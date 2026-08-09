@@ -42,6 +42,7 @@ model Website {
   defaultImageRatio      String   @default("16:9")
   watermarkText          String   @default("")
   watermarkPlacement     String   @default("At the bottom footer of the image, add a clean white rectangular box with a thin black border. Center the text inside the white box in clear black typography. The website text must be readable, correctly spelled, clean, and consistent. Do not place any other text anywhere in the image.")
+  referenceImageUrl      String?
   createdAt              DateTime @default(now())
   updatedAt              DateTime @updatedAt
   tasks                  ArticleTask[]
@@ -68,6 +69,7 @@ model ArticleTask {
   saveToDrive          Boolean  @default(true)
   sendToWordPress      Boolean  @default(true)
   autoRegenerateImages Boolean  @default(true)
+  referenceImageUrl    String?
 
   // Task state machine — per spec §5
   status             String @default("CREATED")
@@ -85,6 +87,8 @@ model ArticleTask {
   suggestedTags      String? // JSON array of strings
 
   // Approval & QC
+  ideasApproved    Boolean @default(false)
+  ideaFeedback     String?
   contentApproved  Boolean @default(false)
   contentQcScore   Int?
   contentQcDetails String? // JSON
@@ -201,6 +205,7 @@ model ImageGeneration {
   wpMediaId        Int?
   wpMediaUrl       String?
   driveFileId      String?
+  userRating       Int?
   createdAt        DateTime       @default(now())
 
   @@index([articleSectionId])

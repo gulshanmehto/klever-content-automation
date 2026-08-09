@@ -113,7 +113,12 @@ export interface ImagePromptResult {
 export interface LLMProvider {
   analyzeCompetitors(contents: Array<{ url: string; text: string }>): Promise<CompetitorAnalysis[]>;
   normalizeAndDeduplicateIdeas(ideas: RawIdea[], topic: string): Promise<NormalizedIdeaResult[]>;
-  selectIdeas(ideas: NormalizedIdeaResult[], count: number, topic: string): Promise<NormalizedIdeaResult[]>;
+  selectIdeas(
+    ideas: NormalizedIdeaResult[],
+    count: number,
+    topic: string,
+    customInstruction?: string
+  ): Promise<NormalizedIdeaResult[]>;
   reorderIdeas(ideas: NormalizedIdeaResult[], topic: string): Promise<NormalizedIdeaResult[]>;
   createOutline(ideas: NormalizedIdeaResult[], config: ArticleConfig): Promise<ArticleOutline>;
   writeArticle(outline: ArticleOutline, config: ArticleConfig): Promise<ArticleContent>;

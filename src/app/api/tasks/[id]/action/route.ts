@@ -12,7 +12,7 @@ export async function POST(
       return NextResponse.json({ error: 'Invalid task ID' }, { status: 400 });
     }
 
-    const { action, sectionId, customPrompt, rating, feedback } = await request.json();
+    const { action, sectionId, customPrompt, rating, feedback, imageId } = await request.json();
 
     // ─── ACTION: RATE_TASK ───
     if (action === 'RATE_TASK') {
@@ -34,6 +34,20 @@ export async function POST(
       });
 
       return NextResponse.json({ success: true, task });
+    }
+
+    // ─── ACTION: RATE_IMAGE ───
+    if (action === 'RATE_IMAGE') {
+      if (!imageId || !rating) {
+        return NextResponse.json({ error: 'imageId and rating are required' }, { status: 400 });
+      }
+
+      await prisma.imageGeneration.update({
+        where: { id: imageId },
+        data: { userRating: rating },
+      });
+
+      return NextResponse.json({ success: true });
     }
 
     // ─── ACTION: REGENERATE_SINGLE_IMAGE ───

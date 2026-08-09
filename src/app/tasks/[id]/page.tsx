@@ -100,6 +100,7 @@ interface TaskDetail {
       generationAttempt: number;
       localPath: string | null;
       wpMediaUrl: string | null;
+      userRating: number | null;
     }>;
   }>;
   taskLogs: Array<{
@@ -518,7 +519,7 @@ export default function TaskDetailPage() {
       <div>
         {activeTab === 'overview' && <OverviewTab task={task} onRefresh={fetchTask} />}
         {activeTab === 'sources' && <SourcesTab task={task} />}
-        {activeTab === 'ideas' && <IdeasTab task={task} />}
+        {activeTab === 'ideas' && <IdeasTab task={task} onRefresh={fetchTask} />}
         {activeTab === 'article' && <ArticleTab task={task} onRefresh={fetchTask} />}
         {activeTab === 'images' && <ImagesTab task={task} onRefresh={fetchTask} />}
         {activeTab === 'quality' && <QualityTab task={task} />}
@@ -712,8 +713,39 @@ function SourcesTab({ task }: { task: TaskDetail }) {
 }
 
 // ─── Ideas Tab ─────────────────────────────────────────────────
-function IdeasTab({ task }: { task: TaskDetail }) {
+function IdeasTab({ task, onRefresh }: { task: TaskDetail; onRefresh: () => void }) {
+  const [feedback, setFeedback] = useState('');
+  const [submitting, setSubmitting] = useState(false);
+
   const selectedIdeas = task.normalizedIdeas.filter((i) => i.selected);
+
+  const handleApprove = async () => {
+    setSubmitting(true);
+    try {
+      await fetch(`/api/tasks/${task.id}/approve-ideas`, { method: 'POST' });
+      onRefresh();
+    } finally {
+      setSubmitting(false);
+    }
+  };
+
+  const handleReject = async () => {
+    if (!feedback) {
+      alert("Please enter feedback for regeneration.");
+      return;
+    }
+    setSubmitting(true);
+    try {
+      await fetch(`/api/tasks/${task.id}/regenerate-ideas`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ feedback }),
+      });
+      onRefresh();
+    } finally {
+      setSubmitting(false);
+    }
+  };
   return (
     <div>
       <div style={{ marginBottom: 16 }}>
@@ -721,6 +753,43 @@ function IdeasTab({ task }: { task: TaskDetail }) {
           {selectedIdeas.length} / {task.normalizedIdeas.length} ideas selected
         </span>
       </div>
+      
+      {task.currentStage === 'IDEAS_READY_FOR_REVIEW' && (
+        <div className="card" style={{ marginBottom: 20, border: '1px solid var(--primary)' }}>
+          <div className="card-header" style={{ backgroundColor: 'var(--primary-light)', color: 'var(--primary-dark)' }}>
+            <h3 className="card-title">Review Selected Ideas</h3>
+          </div>
+          <div className="card-body">
+            <p className="text-sm mb-4">
+              Please review the ideas below. You can approve them to proceed to outline generation, or provide feedback to regenerate them.
+            </p>
+            <textarea
+              className="input mb-4"
+              style={{ minHeight: '80px', width: '100%' }}
+              placeholder="E.g., These are too casual, please include more formal options..."
+              value={feedback}
+              onChange={(e) => setFeedback(e.target.value)}
+            />
+            <div style={{ display: 'flex', gap: 12 }}>
+              <button
+                className="btn btn-primary"
+                onClick={handleApprove}
+                disabled={submitting}
+              >
+                Approve Ideas
+              </button>
+              <button
+                className="btn btn-secondary"
+                onClick={handleReject}
+                disabled={submitting || !feedback}
+              >
+                Regenerate with Feedback
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
       {selectedIdeas.length === 0 ? (
         <div className="empty-state"><p className="text-muted">Ideas will appear after competitor analysis</p></div>
       ) : (
@@ -1062,6 +1131,32 @@ function ImagesTab({ task, onRefresh }: { task: TaskDetail; onRefresh: () => voi
                       </a>
                     )}
                   </div>
+                  
+                  {/* Rating Section */}
+                  {latestImage && (
+                    <div style={{ marginTop: 8, display: 'flex', alignItems: 'center', gap: 4, justifyContent: 'flex-end', borderTop: '1px dashed var(--border-light)', paddingTop: 8 }}>
+                      <span className="text-xs text-muted" style={{ marginRight: 4 }}>Rate:</span>
+                      {[1, 2, 3, 4, 5].map((star) => (
+                        <button
+                          key={star}
+                          onClick={async () => {
+                            await fetch(`/api/tasks/${task.id}/action`, {
+                              method: 'POST',
+                              headers: { 'Content-Type': 'application/json' },
+                              body: JSON.stringify({ action: 'RATE_IMAGE', imageId: latestImage.id, rating: star }),
+                            });
+                            onRefresh();
+                          }}
+                          style={{
+                            background: 'none', border: 'none', cursor: 'pointer', padding: 0,
+                            color: (latestImage.userRating || 0) >= star ? '#eab308' : '#d1d5db'
+                          }}
+                        >
+                          <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill={(latestImage.userRating || 0) >= star ? "currentColor" : "none"} stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"></polygon></svg>
+                        </button>
+                      ))}
+                    </div>
+                  )}
                 </div>
               </div>
             </div>

@@ -29,23 +29,74 @@ export async function POST(
       return NextResponse.json({ success: true, status: 'saved_error' });
     }
 
-    // Write generated image to public directory (Try-catch fallback for Serverless platforms like Vercel)
+    // Fetch the task and website to get the domain for the watermark
+    const task = await prisma.articleTask.findUnique({
+      where: { id: taskId },
+      include: { website: true }
+    });
+    const domain = task?.website?.domain || 'Klever Automation';
+
     let webPath = '';
     try {
       const fs = require('fs');
       const path = require('path');
+      const sharp = require('sharp');
+      
       const publicDir = path.join(process.cwd(), 'public', 'images');
       if (!fs.existsSync(publicDir)) {
         fs.mkdirSync(publicDir, { recursive: true });
       }
-      const filename = `${sectionId}-${Date.now()}.png`;
+      const filename = `${sectionId}-${Date.now()}.jpeg`;
       const localFilePath = path.join(publicDir, filename);
-      fs.writeFileSync(localFilePath, Buffer.from(imageBase64, 'base64'));
+      
+      // Process with sharp and add watermark
+      const imgBuffer = Buffer.from(imageBase64, 'base64');
+      
+      // We will create an SVG text overlay for the watermark
+      const width = 800; // rough width for svg calculation, sharp will center it based on svg dimensions
+      const svgText = `
+        <svg width="100%" height="60" xmlns="http://www.w3.org/2000/svg">
+          <rect x="0" y="0" width="100%" height="60" fill="white" opacity="0.8" />
+          <text x="50%" y="50%" dominant-baseline="middle" text-anchor="middle" font-family="Arial" font-size="24" fill="black" font-weight="bold">${domain}</text>
+        </svg>
+      `;
+      
+      const watermarkedBuffer = await sharp(imgBuffer)
+        .composite([
+          {
+            input: Buffer.from(svgText),
+            gravity: 'south',
+          },
+        ])
+        .jpeg({ quality: 90 })
+        .toBuffer();
+
+      fs.writeFileSync(localFilePath, watermarkedBuffer);
       webPath = `/images/${filename}`;
+      
+      // Also update the imageBase64 to the watermarked version for the DB fallback
+      // using the same buffer
+      const watermarkedBase64 = watermarkedBuffer.toString('base64');
+      
     } catch (e: any) {
       console.warn('Local disk image writing bypassed (serverless environment):', e.message);
-      // If disk is read-only, we store it inline using base64 src fallback on frontend
-      webPath = `data:${mimeType};base64,${imageBase64}`;
+      
+      // Fallback: If disk is read-only but sharp succeeded, use the sharp buffer.
+      // We will try to apply sharp in memory even if disk writes fail.
+      try {
+        const sharp = require('sharp');
+        const imgBuffer = Buffer.from(imageBase64, 'base64');
+        const svgText = `
+          <svg width="100%" height="60" xmlns="http://www.w3.org/2000/svg">
+            <rect x="0" y="0" width="100%" height="60" fill="white" opacity="0.8" />
+            <text x="50%" y="50%" dominant-baseline="middle" text-anchor="middle" font-family="Arial" font-size="24" fill="black" font-weight="bold">${domain}</text>
+          </svg>
+        `;
+        const watermarkedBuffer = await sharp(imgBuffer).composite([{ input: Buffer.from(svgText), gravity: 'south' }]).jpeg({ quality: 90 }).toBuffer();
+        webPath = `data:image/jpeg;base64,${watermarkedBuffer.toString('base64')}`;
+      } catch (err2) {
+        webPath = `data:${mimeType};base64,${imageBase64}`;
+      }
     }
 
     await prisma.imageGeneration.create({
