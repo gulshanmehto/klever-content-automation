@@ -677,8 +677,20 @@ export class TaskOrchestrator {
         if (latestImg && latestImg.localPath) {
           try {
             const fs = require('fs');
-            if (fs.existsSync(latestImg.localPath)) {
-              const fileBuffer = fs.readFileSync(latestImg.localPath);
+            let fileBuffer: Buffer | null = null;
+            
+            if (latestImg.localPath.startsWith('data:')) {
+              // Handle base64 data URI (used on Vercel)
+              const matches = latestImg.localPath.match(/^data:([A-Za-z-+\/]+);base64,(.+)$/);
+              if (matches && matches.length === 3) {
+                fileBuffer = Buffer.from(matches[2], 'base64');
+              }
+            } else if (fs.existsSync(latestImg.localPath)) {
+              // Handle local file path
+              fileBuffer = fs.readFileSync(latestImg.localPath);
+            }
+
+            if (fileBuffer) {
               const cleanFilename = `${section.position}-${section.heading.toLowerCase().replace(/[^a-z0-9]+/g, '-')}.jpg`;
               
               const wpMedia = await wp.uploadMedia(
