@@ -390,16 +390,16 @@ export default function TaskDetailPage() {
                 <ImageOff size={14} style={{ marginRight: 4 }} /> Restart Images
               </button>
 
-              {/* Publish to WordPress */}
-              {task.currentStage === 'READY_FOR_WORDPRESS' && (
-                <button className="btn btn-primary btn-sm" title="Publish to WordPress" onClick={async () => { 
+              {/* Publish / Republish to WordPress */}
+              {(task.currentStage === 'READY_FOR_WORDPRESS' || task.currentStage === 'WORDPRESS_DRAFT_CREATED' || task.currentStage === 'COMPLETE' || task.currentStage === 'COMPLETED') && (
+                <button className="btn btn-primary btn-sm" title={task.wpPostId ? "Republish to WordPress" : "Publish to WordPress"} onClick={async () => { 
                   setLoading(true); 
                   await fetch(`/api/tasks/${taskId}/action`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ action: 'START_WORDPRESS_UPLOAD' }) }); 
                   fetch('/api/jobs/process', { headers: { 'x-client-trigger': 'true' } }).catch(() => {});
                   await fetchTask(); 
                   setLoading(false); 
                 }}>
-                  <CheckCircle2 size={14} style={{ marginRight: 4 }} /> Publish to WordPress
+                  <CheckCircle2 size={14} style={{ marginRight: 4 }} /> {task.wpPostId ? "Republish to WordPress" : "Publish to WordPress"}
                 </button>
               )}
 
@@ -1285,6 +1285,14 @@ function WordPressTab({ task, onPublish }: { task: TaskDetail, onPublish?: () =>
                 <CheckCircle2 size={16} /> PUBLISH TO WORDPRESS
               </button>
             )}
+          </div>
+        )}
+        {task.wpPostId && onPublish && (
+          <div style={{ marginTop: 24, borderTop: '1px solid var(--border-light)', paddingTop: 20 }}>
+            <p className="text-sm text-muted mb-3">Need to push updates or recreate a deleted draft?</p>
+            <button className="btn btn-secondary" onClick={onPublish}>
+              <RotateCcw size={16} /> REPUBLISH TO WORDPRESS
+            </button>
           </div>
         )}
       </div>
