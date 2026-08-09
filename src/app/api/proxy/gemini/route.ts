@@ -20,7 +20,7 @@ export async function POST(request: NextRequest) {
 
     return NextResponse.json({
       success: true,
-      imageBase64: result.base64,
+      imageBase64: result.imageBase64,
       mimeType: result.mimeType || 'image/jpeg',
       model: 'models/gemini-2.5-flash-image',
       provider: 'gemini',
