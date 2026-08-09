@@ -259,6 +259,15 @@ Provide:
 4. Conclusion plan
 5. FAQ topics (2-3 questions)
 
+CRITICAL JSON RULES:
+- The output MUST be a valid, parseable JSON object.
+- ALL property names must be double-quoted.
+- ALL string values must be double-quoted.
+- If you use double quotes inside a string, you MUST escape them (e.g. \\"word\\").
+- DO NOT include trailing commas.
+- DO NOT wrap the output in markdown code blocks (no \`\`\`json). Just return the raw JSON object starting with { and ending with }.
+- DO NOT include any conversational text before or after the JSON.
+
 Return strictly JSON matching this structure:
 {
   "title": "Article Title",
@@ -338,6 +347,15 @@ Write:
 4. An alt text suggestion.
 5. FAQ answers.
 6. A strong conclusion.
+
+CRITICAL JSON RULES:
+- The output MUST be a valid, parseable JSON object.
+- ALL property names must be double-quoted.
+- ALL string values must be double-quoted.
+- If you use double quotes inside a string, you MUST escape them (e.g. \\"word\\").
+- DO NOT include trailing commas.
+- DO NOT wrap the output in markdown code blocks (no \`\`\`json). Just return the raw JSON object starting with { and ending with }.
+- DO NOT include any conversational text before or after the JSON.
 
 Return strictly as a JSON object matching this structure:
 {
