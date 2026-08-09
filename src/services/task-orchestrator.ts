@@ -407,6 +407,7 @@ export class TaskOrchestrator {
           body: section.body,
           altText: section.altTextCandidate,
           imageDescription: section.imageDescription,
+          imagePrompt: section.imageDescription,
         },
       });
     }
