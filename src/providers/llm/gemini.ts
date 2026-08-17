@@ -616,9 +616,9 @@ Return strictly a JSON object:
 
     try {
       const data = JSON.parse(response.response.text());
-      return data.title || \`150+ Captions for \${keyword}\`;
+      return data.title || `150+ Captions for ${keyword}`;
     } catch {
-      return \`150+ Captions for \${keyword}\`;
+      return `150+ Captions for ${keyword}`;
     }
   }
 

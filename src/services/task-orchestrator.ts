@@ -940,20 +940,20 @@ export class TaskOrchestrator {
     };
 
     for (const section of task.articleSections) {
-      const finalPrompt = \`
-\${section.imageDescription || 'A beautiful scenic lifestyle photo representing ' + section.heading + '.'}
+      const finalPrompt = `
+${section.imageDescription || 'A beautiful scenic lifestyle photo representing ' + section.heading + '.'}
 
 WATERMARK INSTRUCTIONS:
-\${watermark.placement}
-Text to use: "\${watermark.text}"
-\`;
+${watermark.placement}
+Text to use: "${watermark.text}"
+`;
       await prisma.articleSection.update({
         where: { id: section.id },
         data: { imagePrompt: finalPrompt }
       });
     }
 
-    await this.log('PROMPTS_GENERATED', \`Prompts prepared. Starting generation loop.\`);
+    await this.log('PROMPTS_GENERATED', `Prompts prepared. Starting generation loop.`);
     await this.updateStage('GENERATING_IMAGES');
     return 'GENERATING_IMAGES';
   }

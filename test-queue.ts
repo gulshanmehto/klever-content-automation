@@ -7,6 +7,8 @@ async function main() {
     include: { articleSections: { orderBy: { position: 'asc' } } }
   });
 
+  if (!task) return console.log('No task');
+
   const sectionsToProcess = [];
   for (const section of task.articleSections) {
     if (!section.imagePrompt) continue;

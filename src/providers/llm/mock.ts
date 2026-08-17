@@ -137,6 +137,28 @@ export class MockLLMProvider implements LLMProvider {
     };
   }
 
+  async generateCaptionsTitle(keyword: string, guidelines?: string): Promise<string> {
+    return `Mock Captions for ${keyword}`;
+  }
+
+  async generateCaptionsSubcategories(title: string, guidelines?: string): Promise<string[]> {
+    return ['Mock Subcategory 1', 'Mock Subcategory 2'];
+  }
+
+  async writeCaptionsArticle(title: string, subcategories: string[], guidelines?: string): Promise<ArticleContent> {
+    return {
+      title,
+      slug: 'mock-slug',
+      faq: [],
+      introduction: 'Mock Intro',
+      sections: subcategories.map((s, i) => ({ position: i, heading: s, body: 'Mock Body', imageDescription: 'img', altTextCandidate: 'alt' })),
+      conclusion: 'Mock Conclusion',
+      metaTitle: 'Mock Meta',
+      metaDescription: 'Mock Description',
+      suggestedTags: ['mock', 'tags'],
+    };
+  }
+
   async qualityCheckImage(
     imageBase64: string,
     section: { heading: string; body: string; concept: string },

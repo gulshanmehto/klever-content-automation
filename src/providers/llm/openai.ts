@@ -342,6 +342,28 @@ ${JSON.stringify(outline)}`,
     return JSON.parse(response.choices[0].message.content || '{}') as ArticleContent;
   }
 
+  async generateCaptionsTitle(keyword: string, guidelines?: string): Promise<string> {
+    return `OpenAI Captions for ${keyword}`;
+  }
+
+  async generateCaptionsSubcategories(title: string, guidelines?: string): Promise<string[]> {
+    return ['OpenAI Subcategory 1'];
+  }
+
+  async writeCaptionsArticle(title: string, subcategories: string[], guidelines?: string): Promise<ArticleContent> {
+    return {
+      title,
+      slug: 'openai-slug',
+      faq: [],
+      introduction: 'Intro',
+      sections: subcategories.map((s, i) => ({ position: i, heading: s, body: 'Body', imageDescription: 'img', altTextCandidate: 'alt' })),
+      conclusion: 'Conclusion',
+      metaTitle: 'Meta',
+      metaDescription: 'Desc',
+      suggestedTags: [],
+    };
+  }
+
   async generateImagePrompts(
     sections: Array<{ position: number; heading: string; body: string; concept: string }>,
     watermark: WatermarkConfig,

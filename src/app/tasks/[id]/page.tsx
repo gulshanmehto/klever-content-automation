@@ -34,7 +34,6 @@ import {
   formatTime,
   STAGE_LABELS,
   STAGE_COLORS,
-  STAGE_COLORS,
   PIPELINE_STAGES,
   CAPTIONS_PIPELINE_STAGES,
   getWpStatus,
