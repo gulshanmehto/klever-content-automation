@@ -134,4 +134,9 @@ export interface LLMProvider {
     section: { heading: string; body: string; concept: string },
     watermarkText: string,
   ): Promise<ImageQCResult>;
+
+  // Captions Workflow Methods
+  generateCaptionsTitle(keyword: string, guidelines?: string): Promise<string>;
+  generateCaptionsSubcategories(title: string, guidelines?: string): Promise<string[]>;
+  writeCaptionsArticle(title: string, subcategories: string[], guidelines?: string): Promise<ArticleContent>;
 }

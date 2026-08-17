@@ -24,6 +24,7 @@ export default function NewArticlePage() {
   const [error, setError] = useState('');
 
   // Form state
+  const [taskType, setTaskType] = useState<'STANDARD' | 'CAPTIONS'>('STANDARD');
   const [websiteId, setWebsiteId] = useState('');
   const [topic, setTopic] = useState('');
   const [requestedIdeaCount, setRequestedIdeaCount] = useState(10);
@@ -83,8 +84,8 @@ export default function NewArticlePage() {
 
     const competitorUrls = [competitorUrl1, competitorUrl2, competitorUrl3].filter(Boolean);
 
-    if (competitorUrls.length === 0) {
-      setError('At least 1 competitor URL is required');
+    if (taskType === 'STANDARD' && competitorUrls.length === 0) {
+      setError('At least 1 competitor URL is required for standard tasks');
       setLoading(false);
       return;
     }
@@ -111,6 +112,7 @@ export default function NewArticlePage() {
           saveToDrive,
           sendToWordPress,
           autoRegenerateImages,
+          taskType,
         }),
       });
 
@@ -176,6 +178,33 @@ export default function NewArticlePage() {
               )}
             </div>
 
+            {/* Task Type */}
+            <div className="form-group">
+              <label className="form-label">Task Type</label>
+              <div style={{ display: 'flex', gap: '16px' }}>
+                <label style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                  <input
+                    type="radio"
+                    name="taskType"
+                    value="STANDARD"
+                    checked={taskType === 'STANDARD'}
+                    onChange={() => setTaskType('STANDARD')}
+                  />
+                  Standard Article (Competitor based)
+                </label>
+                <label style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                  <input
+                    type="radio"
+                    name="taskType"
+                    value="CAPTIONS"
+                    checked={taskType === 'CAPTIONS'}
+                    onChange={() => setTaskType('CAPTIONS')}
+                  />
+                  Captions Article
+                </label>
+              </div>
+            </div>
+
             {/* Topic */}
             <div className="form-group">
               <label className="form-label" htmlFor="topic">
@@ -210,49 +239,53 @@ export default function NewArticlePage() {
               <p className="form-helper">Recommended: 10–50 ideas</p>
             </div>
 
-            {/* Competitor URLs */}
-            <div className="form-group">
-              <label className="form-label" htmlFor="url1">
-                Competitor URL 1 <span style={{ color: 'var(--status-red)' }}>*</span>
-              </label>
-              <input
-                id="url1"
-                type="url"
-                className="form-input"
-                value={competitorUrl1}
-                onChange={(e) => setCompetitorUrl1(e.target.value)}
-                placeholder="https://competitor.com/article"
-                required
-              />
-            </div>
+            {/* Competitor URLs - Only for Standard Task */}
+            {taskType === 'STANDARD' && (
+              <>
+                <div className="form-group">
+                  <label className="form-label" htmlFor="url1">
+                    Competitor URL 1 <span style={{ color: 'var(--status-red)' }}>*</span>
+                  </label>
+                  <input
+                    id="url1"
+                    type="url"
+                    className="form-input"
+                    value={competitorUrl1}
+                    onChange={(e) => setCompetitorUrl1(e.target.value)}
+                    placeholder="https://competitor.com/article"
+                    required={taskType === 'STANDARD'}
+                  />
+                </div>
 
-            <div className="form-group">
-              <label className="form-label" htmlFor="url2">
-                Competitor URL 2 <span className="form-label-optional">(Optional)</span>
-              </label>
-              <input
-                id="url2"
-                type="url"
-                className="form-input"
-                value={competitorUrl2}
-                onChange={(e) => setCompetitorUrl2(e.target.value)}
-                placeholder="https://competitor2.com/article"
-              />
-            </div>
+                <div className="form-group">
+                  <label className="form-label" htmlFor="url2">
+                    Competitor URL 2 <span className="form-label-optional">(Optional)</span>
+                  </label>
+                  <input
+                    id="url2"
+                    type="url"
+                    className="form-input"
+                    value={competitorUrl2}
+                    onChange={(e) => setCompetitorUrl2(e.target.value)}
+                    placeholder="https://competitor2.com/article"
+                  />
+                </div>
 
-            <div className="form-group">
-              <label className="form-label" htmlFor="url3">
-                Competitor URL 3 <span className="form-label-optional">(Optional)</span>
-              </label>
-              <input
-                id="url3"
-                type="url"
-                className="form-input"
-                value={competitorUrl3}
-                onChange={(e) => setCompetitorUrl3(e.target.value)}
-                placeholder="https://competitor3.com/article"
-              />
-            </div>
+                <div className="form-group">
+                  <label className="form-label" htmlFor="url3">
+                    Competitor URL 3 <span className="form-label-optional">(Optional)</span>
+                  </label>
+                  <input
+                    id="url3"
+                    type="url"
+                    className="form-input"
+                    value={competitorUrl3}
+                    onChange={(e) => setCompetitorUrl3(e.target.value)}
+                    placeholder="https://competitor3.com/article"
+                  />
+                </div>
+              </>
+            )}
 
             {/* Additional Settings */}
             <div style={{ borderTop: '1px solid var(--border-light)', paddingTop: 20, marginTop: 8 }}>

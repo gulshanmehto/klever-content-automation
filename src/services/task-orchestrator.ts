@@ -77,6 +77,17 @@ export class TaskOrchestrator {
           return await this.saveToDrive();
         case 'UPLOADING_TO_WORDPRESS':
           return await this.uploadToWordPress();
+        
+        // Captions Workflow
+        case 'GENERATE_CAPTIONS_TITLE':
+          return await this.generateCaptionsTitle();
+        case 'GENERATE_CAPTIONS_SUBCATEGORIES':
+          return await this.generateCaptionsSubcategories();
+        case 'WRITE_CAPTIONS_ARTICLE':
+          return await this.writeCaptionsArticle();
+        case 'GENERATE_CAPTIONS_IMAGE_PROMPTS':
+          return await this.generateCaptionsImagePrompts();
+
         case 'COMPLETE':
           return await this.complete();
         default:
@@ -811,5 +822,139 @@ export class TaskOrchestrator {
 
     await this.log('TASK_COMPLETED', 'Task completed successfully!');
     return 'DONE';
+  }
+
+  // ─── Captions Workflow ────────────────────────────────────────
+
+  private async generateCaptionsTitle(): Promise<string> {
+    await this.updateStage('GENERATING_TITLE');
+    await this.log('STAGE_START', 'Generating Captions Article Title');
+
+    const task = await prisma.articleTask.findUnique({ where: { id: this.taskId } });
+    if (!task) throw new Error('Task not found');
+
+    const llm = await this.getLLM();
+    const title = await llm.generateCaptionsTitle(task.topic, task.customInstructions || undefined);
+
+    await prisma.articleTask.update({
+      where: { id: this.taskId },
+      data: { articleTitle: title, articleSlug: title.toLowerCase().replace(/[^a-z0-9]+/g, '-') },
+    });
+
+    await this.updateStage('WAITING_TITLE_APPROVAL');
+    await this.log('WAITING_FOR_TITLE_APPROVAL', 'Title generated. Waiting for manual approval.');
+    return 'WAIT_FOR_APPROVAL';
+  }
+
+  private async generateCaptionsSubcategories(): Promise<string> {
+    await this.updateStage('GENERATING_SUBCATEGORIES');
+    await this.log('STAGE_START', 'Generating Captions Subcategories');
+
+    const task = await prisma.articleTask.findUnique({ where: { id: this.taskId } });
+    if (!task) throw new Error('Task not found');
+
+    const llm = await this.getLLM();
+    const subcategories = await llm.generateCaptionsSubcategories(task.articleTitle || task.topic, task.customInstructions || undefined);
+
+    // Clear existing sections just in case
+    await prisma.articleSection.deleteMany({ where: { articleTaskId: this.taskId } });
+
+    // Save subcategories as sections
+    for (let i = 0; i < subcategories.length; i++) {
+      await prisma.articleSection.create({
+        data: {
+          articleTaskId: this.taskId,
+          position: i + 1,
+          heading: subcategories[i],
+          body: '',
+        }
+      });
+    }
+
+    await this.updateStage('WAITING_SUBCATEGORIES_APPROVAL');
+    await this.log('WAITING_FOR_SUBCATEGORIES_APPROVAL', 'Subcategories generated. Waiting for manual approval.');
+    return 'WAIT_FOR_APPROVAL';
+  }
+
+  private async writeCaptionsArticle(): Promise<string> {
+    await this.updateStage('WRITING_CAPTIONS_ARTICLE');
+    await this.log('STAGE_START', 'Writing Captions Article Content');
+
+    const task = await prisma.articleTask.findUnique({
+      where: { id: this.taskId },
+      include: { articleSections: { orderBy: { position: 'asc' } } }
+    });
+    if (!task) throw new Error('Task not found');
+
+    const subcategories = task.articleSections.map(s => s.heading);
+    const llm = await this.getLLM();
+    const article = await llm.writeCaptionsArticle(task.articleTitle || task.topic, subcategories, task.customInstructions || undefined);
+
+    // Update main task
+    await prisma.articleTask.update({
+      where: { id: this.taskId },
+      data: {
+        articleIntroduction: article.introduction,
+        articleConclusion: article.conclusion,
+        metaTitle: article.metaTitle,
+        metaDescription: article.metaDescription,
+        suggestedTags: JSON.stringify(article.suggestedTags),
+      }
+    });
+
+    // Update sections
+    for (const section of article.sections) {
+      const dbSection = task.articleSections.find(s => s.heading === section.heading || s.position === section.position);
+      if (dbSection) {
+        await prisma.articleSection.update({
+          where: { id: dbSection.id },
+          data: {
+            body: section.body,
+            imageDescription: section.imageDescription,
+            altText: section.altTextCandidate,
+          }
+        });
+      }
+    }
+
+    await this.updateStage('WAITING_ARTICLE_APPROVAL');
+    await this.log('WAITING_FOR_ARTICLE_APPROVAL', 'Captions Article written. Waiting for manual approval.');
+    return 'WAIT_FOR_APPROVAL';
+  }
+
+  private async generateCaptionsImagePrompts(): Promise<string> {
+    await this.log('STAGE_START', 'Generating Captions Image Prompts');
+
+    const task = await prisma.articleTask.findUnique({
+      where: { id: this.taskId },
+      include: {
+        website: true,
+        articleSections: { orderBy: { position: 'asc' } }
+      }
+    });
+    if (!task) throw new Error('Task not found');
+
+    const watermark = {
+      text: task.website.watermarkText || task.website.domain,
+      placement: task.website.watermarkPlacement,
+    };
+
+    for (const section of task.articleSections) {
+      const finalPrompt = \`
+\${section.imageDescription || 'A beautiful scenic lifestyle photo representing ' + section.heading + '.'}
+
+WATERMARK INSTRUCTIONS:
+\${watermark.placement}
+Text to use: "\${watermark.text}"
+\`;
+      await prisma.articleSection.update({
+        where: { id: section.id },
+        data: { imagePrompt: finalPrompt }
+      });
+    }
+
+    await this.log('PROMPTS_GENERATED', \`Prompts prepared. Starting generation loop.\`);
+    await this.updateStage('GENERATING_IMAGES');
+    return 'GENERATING_IMAGES';
   }
 }

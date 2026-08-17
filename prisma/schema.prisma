@@ -70,6 +70,7 @@ model ArticleTask {
   sendToWordPress      Boolean  @default(true)
   autoRegenerateImages Boolean  @default(true)
   referenceImageUrl    String?
+  taskType             String   @default("STANDARD") // STANDARD or CAPTIONS
 
   // Task state machine — per spec §5
   status             String @default("CREATED")

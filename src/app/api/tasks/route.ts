@@ -143,6 +143,7 @@ const createTaskSchema = z.object({
   saveToDrive: z.boolean().default(true),
   sendToWordPress: z.boolean().default(true),
   autoRegenerateImages: z.boolean().default(true),
+  taskType: z.enum(['STANDARD', 'CAPTIONS']).default('STANDARD'),
 });
 
 export async function POST(request: NextRequest) {
@@ -177,6 +178,7 @@ export async function POST(request: NextRequest) {
         saveToDrive: data.saveToDrive,
         sendToWordPress: data.sendToWordPress,
         autoRegenerateImages: data.autoRegenerateImages,
+        taskType: data.taskType,
         status: 'CREATED',
         currentStage: 'CREATED',
         progressPercentage: 0,
@@ -211,7 +213,7 @@ export async function POST(request: NextRequest) {
       data: {
         taskId: task.id,
         jobType: 'PIPELINE_STEP',
-        step: 'FETCHING_COMPETITORS',
+        step: data.taskType === 'CAPTIONS' ? 'GENERATE_CAPTIONS_TITLE' : 'FETCHING_COMPETITORS',
         payload: JSON.stringify({ taskId: task.id }),
         status: 'PENDING',
       },

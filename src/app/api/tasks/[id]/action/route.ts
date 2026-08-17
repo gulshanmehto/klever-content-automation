@@ -12,7 +12,71 @@ export async function POST(
       return NextResponse.json({ error: 'Invalid task ID' }, { status: 400 });
     }
 
-    const { action, sectionId, customPrompt, rating, feedback, imageId } = await request.json();
+    const { action, sectionId, customPrompt, rating, feedback, imageId, newTitle, newSubcategories, newArticleBody } = await request.json();
+
+    // ─── CAPTIONS WORKFLOW ACTIONS ───
+    if (action === 'APPROVE_CAPTIONS_TITLE') {
+      if (newTitle) {
+        await prisma.articleTask.update({
+          where: { id: taskId },
+          data: { articleTitle: newTitle, articleSlug: newTitle.toLowerCase().replace(/[^a-z0-9]+/g, '-') }
+        });
+      }
+      
+      await prisma.articleTask.update({
+        where: { id: taskId },
+        data: { currentStage: 'GENERATING_SUBCATEGORIES' }
+      });
+      await prisma.jobQueue.create({
+        data: { taskId, jobType: 'PIPELINE_STEP', step: 'GENERATE_CAPTIONS_SUBCATEGORIES', payload: JSON.stringify({ taskId }), status: 'PENDING' }
+      });
+      return NextResponse.json({ success: true });
+    }
+
+    if (action === 'APPROVE_CAPTIONS_SUBCATEGORIES') {
+      if (newSubcategories && Array.isArray(newSubcategories)) {
+        await prisma.articleSection.deleteMany({ where: { articleTaskId: taskId } });
+        for (let i = 0; i < newSubcategories.length; i++) {
+          await prisma.articleSection.create({
+            data: { articleTaskId: taskId, position: i + 1, heading: newSubcategories[i], body: '' }
+          });
+        }
+      }
+
+      await prisma.articleTask.update({
+        where: { id: taskId },
+        data: { currentStage: 'WRITING_CAPTIONS_ARTICLE' }
+      });
+      await prisma.jobQueue.create({
+        data: { taskId, jobType: 'PIPELINE_STEP', step: 'WRITE_CAPTIONS_ARTICLE', payload: JSON.stringify({ taskId }), status: 'PENDING' }
+      });
+      return NextResponse.json({ success: true });
+    }
+
+    if (action === 'APPROVE_CAPTIONS_ARTICLE') {
+      if (newArticleBody) {
+        // If the user made manual edits to the sections, we could save them here, 
+        // but for simplicity, we assume the frontend sends the updated sections.
+        // Assuming newArticleBody is an array of sections: { id: string, body: string }
+        if (Array.isArray(newArticleBody)) {
+          for (const sec of newArticleBody) {
+            await prisma.articleSection.update({
+              where: { id: sec.id },
+              data: { body: sec.body }
+            });
+          }
+        }
+      }
+
+      await prisma.articleTask.update({
+        where: { id: taskId },
+        data: { currentStage: 'GENERATING_IMAGE_PROMPTS' } // using standard or captions prompts
+      });
+      await prisma.jobQueue.create({
+        data: { taskId, jobType: 'PIPELINE_STEP', step: 'GENERATE_CAPTIONS_IMAGE_PROMPTS', payload: JSON.stringify({ taskId }), status: 'PENDING' }
+      });
+      return NextResponse.json({ success: true });
+    }
 
     // ─── ACTION: RATE_TASK ───
     if (action === 'RATE_TASK') {

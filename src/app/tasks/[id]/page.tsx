@@ -34,13 +34,16 @@ import {
   formatTime,
   STAGE_LABELS,
   STAGE_COLORS,
+  STAGE_COLORS,
   PIPELINE_STAGES,
+  CAPTIONS_PIPELINE_STAGES,
   getWpStatus,
 } from '@/lib/utils';
 
 interface TaskDetail {
   id: number;
   topic: string;
+  taskType: string;
   currentStage: string;
   status: string;
   progressPercentage: number;
@@ -117,11 +120,17 @@ const TABS = [
   { key: 'ideas', label: 'Ideas', icon: Lightbulb },
   { key: 'article', label: 'Article', icon: FileText },
   { key: 'images', label: 'Images', icon: ImageIcon },
-  { key: 'quality', label: 'Quality Check', icon: ShieldCheck },
   { key: 'drive', label: 'Drive', icon: HardDrive },
   { key: 'wordpress', label: 'WordPress', icon: Newspaper },
   { key: 'logs', label: 'Logs', icon: Activity },
 ];
+
+const getTabs = (taskType: string) => {
+  if (taskType === 'CAPTIONS') {
+    return TABS.filter(t => t.key !== 'sources' && t.key !== 'ideas');
+  }
+  return TABS;
+};
 
 export default function TaskDetailPage() {
   const params = useParams();
@@ -154,8 +163,9 @@ export default function TaskDetailPage() {
     const inProgressStages = [
       'CREATED', 'FETCHING_COMPETITORS', 'ANALYZING_COMPETITORS', 'EXTRACTING_IDEAS',
       'DEDUPLICATING', 'BUILDING_OUTLINE', 'WRITING_ARTICLE',
-      // GENERATING_IMAGES is omitted because it is handled by the client orchestration loop below
       'IMAGE_QC', 'SAVING_TO_DRIVE', 'UPLOADING_TO_WORDPRESS',
+      // Captions specific
+      'GENERATING_TITLE', 'GENERATING_SUBCATEGORIES', 'WRITING_CAPTIONS_ARTICLE', 'GENERATING_IMAGE_PROMPTS'
     ];
     if (inProgressStages.includes(task.currentStage)) {
       const interval = setInterval(async () => {
@@ -448,8 +458,9 @@ export default function TaskDetailPage() {
       <div className="card" style={{ marginBottom: 20 }}>
         <div className="card-body">
           <div className="progress-timeline">
-            {PIPELINE_STAGES.slice(0, -1).map((stage, index) => {
-              const currentIndex = PIPELINE_STAGES.indexOf(task.currentStage as typeof PIPELINE_STAGES[number]);
+            {(task.taskType === 'CAPTIONS' ? CAPTIONS_PIPELINE_STAGES : PIPELINE_STAGES).slice(0, -1).map((stage, index) => {
+              const currentStages = task.taskType === 'CAPTIONS' ? CAPTIONS_PIPELINE_STAGES : PIPELINE_STAGES;
+              const currentIndex = currentStages.indexOf(task.currentStage as any);
               const stageIndex = index;
               let status = 'pending';
               if (task.currentStage === 'FAILED' || task.currentStage === 'CANCELLED') {
@@ -474,6 +485,12 @@ export default function TaskDetailPage() {
                 SAVING_TO_DRIVE: 'Drive',
                 UPLOADING_TO_WORDPRESS: 'Upload',
                 WORDPRESS_DRAFT_CREATED: 'Draft',
+                GENERATING_TITLE: 'Title',
+                WAITING_TITLE_APPROVAL: 'Approve Title',
+                GENERATING_SUBCATEGORIES: 'Subcategories',
+                WAITING_SUBCATEGORIES_APPROVAL: 'Approve Subcats',
+                WRITING_CAPTIONS_ARTICLE: 'Write Captions',
+                WAITING_ARTICLE_APPROVAL: 'Approve Content',
               };
 
               return (
@@ -494,7 +511,7 @@ export default function TaskDetailPage() {
                       {shortLabels[stage] || stage}
                     </span>
                   </div>
-                  {index < PIPELINE_STAGES.length - 2 && (
+                  {index < (task.taskType === 'CAPTIONS' ? CAPTIONS_PIPELINE_STAGES : PIPELINE_STAGES).length - 2 && (
                     <div className={`timeline-connector ${status === 'completed' ? 'completed' : ''}`} />
                   )}
                 </div>
@@ -506,7 +523,7 @@ export default function TaskDetailPage() {
 
       {/* Tabs */}
       <div className="tabs">
-        {TABS.map((tab) => {
+        {getTabs(task.taskType).map((tab) => {
           const Icon = tab.icon;
           return (
             <button
@@ -587,6 +604,50 @@ function OverviewTab({ task, onRefresh }: { task: TaskDetail; onRefresh: () => v
     }
   };
 
+  const [editTitle, setEditTitle] = useState(task.articleTitle || '');
+  const handleApproveTitle = async () => {
+    setSavingFeedback(true);
+    try {
+      await fetch(`/api/tasks/${task.id}/action`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ action: 'APPROVE_CAPTIONS_TITLE', newTitle: editTitle }),
+      });
+      onRefresh();
+    } finally {
+      setSavingFeedback(false);
+    }
+  };
+
+  const [editSubcategories, setEditSubcategories] = useState(task.articleSections.map(s => s.heading).join('\\n'));
+  const handleApproveSubcategories = async () => {
+    setSavingFeedback(true);
+    try {
+      await fetch(`/api/tasks/${task.id}/action`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ action: 'APPROVE_CAPTIONS_SUBCATEGORIES', newSubcategories: editSubcategories.split('\\n').filter(Boolean) }),
+      });
+      onRefresh();
+    } finally {
+      setSavingFeedback(false);
+    }
+  };
+
+  const handleApproveArticle = async () => {
+    setSavingFeedback(true);
+    try {
+      await fetch(`/api/tasks/${task.id}/action`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ action: 'APPROVE_CAPTIONS_ARTICLE' }),
+      });
+      onRefresh();
+    } finally {
+      setSavingFeedback(false);
+    }
+  };
+
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: 20 }}>
       <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 16 }}>
@@ -620,6 +681,39 @@ function OverviewTab({ task, onRefresh }: { task: TaskDetail; onRefresh: () => v
           </div>
         </div>
       </div>
+
+      {/* Captions Workflow Actions */}
+      {task.taskType === 'CAPTIONS' && (
+        <>
+          {task.currentStage === 'WAITING_TITLE_APPROVAL' && (
+            <div className="card" style={{ border: '2px solid var(--status-amber)' }}>
+              <div className="card-header"><h3 className="card-title">Approve Title</h3></div>
+              <div className="card-body">
+                <input type="text" className="form-control" value={editTitle} onChange={e => setEditTitle(e.target.value)} style={{ width: '100%', marginBottom: 12 }} />
+                <button className="btn btn-primary" onClick={handleApproveTitle} disabled={savingFeedback}>Approve & Continue</button>
+              </div>
+            </div>
+          )}
+          {task.currentStage === 'WAITING_SUBCATEGORIES_APPROVAL' && (
+            <div className="card" style={{ border: '2px solid var(--status-amber)' }}>
+              <div className="card-header"><h3 className="card-title">Approve Subcategories</h3></div>
+              <div className="card-body">
+                <textarea className="form-control" value={editSubcategories} onChange={e => setEditSubcategories(e.target.value)} style={{ width: '100%', minHeight: 200, marginBottom: 12 }} />
+                <button className="btn btn-primary" onClick={handleApproveSubcategories} disabled={savingFeedback}>Approve & Continue</button>
+              </div>
+            </div>
+          )}
+          {task.currentStage === 'WAITING_ARTICLE_APPROVAL' && (
+            <div className="card" style={{ border: '2px solid var(--status-amber)' }}>
+              <div className="card-header"><h3 className="card-title">Approve Captions Article</h3></div>
+              <div className="card-body">
+                <p>The captions article has been generated. Please review it in the <strong>Article Tab</strong>.</p>
+                <button className="btn btn-primary mt-4" onClick={handleApproveArticle} disabled={savingFeedback}>Approve Content & Generate Images</button>
+              </div>
+            </div>
+          )}
+        </>
+      )}
 
       {/* Rating & Learning Loop */}
       <div className="card">

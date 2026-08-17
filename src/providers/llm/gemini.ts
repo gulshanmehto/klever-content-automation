@@ -592,4 +592,110 @@ Return strictly JSON:
 
     return JSON.parse(response.response.text()) as ImageQCResult;
   }
+
+  // ─── Captions Workflow Methods ──────────────────────────────────────────────
+
+  async generateCaptionsTitle(keyword: string, guidelines?: string): Promise<string> {
+    const ai = await this.getClient();
+    const model = ai.getGenerativeModel({ model: 'models/gemini-3.5-flash-lite' });
+
+    const prompt = `
+You are an expert social media content strategist. The user wants to write an article with hundreds of captions for the keyword: "${keyword}".
+Your task is to generate exactly ONE catchy title for this article (e.g., "160+ Weather Captions").
+
+${guidelines ? `Guidelines:\n${guidelines}\n` : ''}
+
+Return strictly a JSON object:
+{ "title": "Your Generated Title Here" }
+`;
+
+    const response = await model.generateContent({
+      contents: [{ role: 'user', parts: [{ text: prompt }] }],
+      generationConfig: { responseMimeType: 'application/json' },
+    });
+
+    try {
+      const data = JSON.parse(response.response.text());
+      return data.title || \`150+ Captions for \${keyword}\`;
+    } catch {
+      return \`150+ Captions for \${keyword}\`;
+    }
+  }
+
+  async generateCaptionsSubcategories(title: string, guidelines?: string): Promise<string[]> {
+    const ai = await this.getClient();
+    const model = ai.getGenerativeModel({ model: 'models/gemini-3.5-flash-lite' });
+
+    const prompt = `
+You are an expert social media content strategist. The user is writing an article titled: "${title}".
+Your task is to generate 5 to 10 subcategories/subheadings for this article.
+For example, if the title is about "Weather Captions", subcategories might be "Aesthetic Weather Captions", "Warm Weather Captions", "Cold Weather Captions", etc.
+
+${guidelines ? `Guidelines:\n${guidelines}\n` : ''}
+
+Return strictly a JSON array of strings representing the subcategories:
+["Subcategory 1", "Subcategory 2", "Subcategory 3"]
+`;
+
+    const response = await model.generateContent({
+      contents: [{ role: 'user', parts: [{ text: prompt }] }],
+      generationConfig: { responseMimeType: 'application/json' },
+    });
+
+    try {
+      return JSON.parse(response.response.text());
+    } catch {
+      return ['General Captions', 'Aesthetic Captions', 'Short Captions'];
+    }
+  }
+
+  async writeCaptionsArticle(title: string, subcategories: string[], guidelines?: string): Promise<ArticleContent> {
+    const ai = await this.getClient();
+    const model = ai.getGenerativeModel({ model: 'models/gemini-3.5-flash-lite' });
+
+    const prompt = `
+You are an expert social media copywriter. You are writing an article titled: "${title}".
+The article has the following subcategories: ${JSON.stringify(subcategories)}.
+
+Task:
+1. Write an engaging introduction (~150 words).
+2. For EACH subcategory, generate 10 to 20 highly engaging, trendy captions. Format them nicely using HTML (e.g., <ul><li>Caption 1</li><li>Caption 2</li></ul>) inside the body of that section.
+3. Generate a highly detailed image prompt for EACH subcategory that visualizes one of the captions.
+4. Write a conclusion.
+
+${guidelines ? `Guidelines:\n${guidelines}\n` : ''}
+
+Return strictly a JSON object matching this structure:
+{
+  "title": "${title}",
+  "slug": "captions-slug",
+  "introduction": "Intro text...",
+  "sections": [
+    {
+      "position": 1,
+      "heading": "Subcategory 1",
+      "body": "<ul><li>Caption 1</li>...</ul>",
+      "imageDescription": "Detailed image prompt...",
+      "altTextCandidate": "Alt text..."
+    }
+  ],
+  "faq": [],
+  "conclusion": "Conclusion text...",
+  "metaTitle": "SEO title",
+  "metaDescription": "SEO meta description",
+  "suggestedTags": ["captions", "instagram"]
+}
+`;
+
+    const response = await model.generateContent({
+      contents: [{ role: 'user', parts: [{ text: prompt }] }],
+      generationConfig: { responseMimeType: 'application/json' },
+    });
+
+    try {
+      return JSON.parse(response.response.text()) as ArticleContent;
+    } catch {
+      throw new Error("Failed to generate captions article content.");
+    }
+  }
 }
