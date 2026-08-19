@@ -595,13 +595,13 @@ Return strictly JSON:
 
   // ─── Captions Workflow Methods ──────────────────────────────────────────────
 
-  async generateCaptionsTitle(keyword: string, guidelines?: string): Promise<string> {
+  async generateCaptionsTitle(keyword: string, count: number, guidelines?: string): Promise<string> {
     const ai = await this.getClient();
     const model = ai.getGenerativeModel({ model: 'models/gemini-3.5-flash-lite' });
 
     const prompt = `
-You are an expert social media content strategist. The user wants to write an article with hundreds of captions for the keyword: "${keyword}".
-Your task is to generate exactly ONE catchy title for this article (e.g., "160+ Weather Captions").
+You are an expert social media content strategist. The user wants to write an article with approximately ${count} captions for the keyword: "${keyword}".
+Your task is to generate exactly ONE catchy title for this article (e.g., "${count}+ Weather Captions").
 
 ${guidelines ? `Guidelines:\n${guidelines}\n` : ''}
 
@@ -622,13 +622,15 @@ Return strictly a JSON object:
     }
   }
 
-  async generateCaptionsSubcategories(title: string, guidelines?: string): Promise<string[]> {
+  async generateCaptionsSubcategories(title: string, count: number, guidelines?: string): Promise<string[]> {
     const ai = await this.getClient();
     const model = ai.getGenerativeModel({ model: 'models/gemini-3.5-flash-lite' });
 
+    const numSubcategories = Math.ceil(count / 15);
+
     const prompt = `
-You are an expert social media content strategist. The user is writing an article titled: "${title}".
-Your task is to generate 5 to 10 subcategories/subheadings for this article.
+You are an expert social media content strategist. The user is writing an article titled: "${title}" which needs roughly ${count} captions in total.
+Your task is to generate exactly ${numSubcategories} subcategories/subheadings for this article.
 For example, if the title is about "Weather Captions", subcategories might be "Aesthetic Weather Captions", "Warm Weather Captions", "Cold Weather Captions", etc.
 
 ${guidelines ? `Guidelines:\n${guidelines}\n` : ''}
@@ -649,7 +651,7 @@ Return strictly a JSON array of strings representing the subcategories:
     }
   }
 
-  async writeCaptionsArticle(title: string, subcategories: string[], guidelines?: string): Promise<ArticleContent> {
+  async writeCaptionsArticle(title: string, subcategories: string[], count: number, guidelines?: string): Promise<ArticleContent> {
     const ai = await this.getClient();
     const model = ai.getGenerativeModel({ model: 'models/gemini-3.5-flash-lite' });
 
@@ -658,10 +660,10 @@ You are an expert social media copywriter. You are writing an article titled: "$
 The article has the following subcategories: ${JSON.stringify(subcategories)}.
 
 Task:
-1. Write an engaging introduction (~150 words).
-2. For EACH subcategory, generate 10 to 20 highly engaging, trendy captions. Format them nicely using HTML (e.g., <ul><li>Caption 1</li><li>Caption 2</li></ul>) inside the body of that section.
+1. Write an engaging introduction (exactly 120-150 words).
+2. For EACH subcategory, generate 10 to 20 highly engaging, trendy captions. The total number of captions across all subcategories should be approximately ${count}. Format them nicely using HTML (e.g., <ul><li>Caption 1</li><li>Caption 2</li></ul>) inside the body of that section.
 3. Generate a highly detailed image prompt for EACH subcategory that visualizes one of the captions.
-4. Write a conclusion.
+4. Write a conclusion (exactly 50-60 words).
 
 ${guidelines ? `Guidelines:\n${guidelines}\n` : ''}
 
@@ -692,10 +694,16 @@ Return strictly a JSON object matching this structure:
       generationConfig: { responseMimeType: 'application/json' },
     });
 
+    const text = response.response.text();
     try {
-      return JSON.parse(response.response.text()) as ArticleContent;
+      const startIndex = text.indexOf('{');
+      const endIndex = text.lastIndexOf('}');
+      if (startIndex !== -1 && endIndex !== -1) {
+        return JSON.parse(text.substring(startIndex, endIndex + 1)) as ArticleContent;
+      }
+      return JSON.parse(text) as ArticleContent;
     } catch {
-      throw new Error("Failed to generate captions article content.");
+      throw new Error("Failed to generate captions article content. Invalid JSON response from LLM.");
     }
   }
 }

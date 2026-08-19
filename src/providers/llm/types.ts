@@ -136,7 +136,7 @@ export interface LLMProvider {
   ): Promise<ImageQCResult>;
 
   // Captions Workflow Methods
-  generateCaptionsTitle(keyword: string, guidelines?: string): Promise<string>;
-  generateCaptionsSubcategories(title: string, guidelines?: string): Promise<string[]>;
-  writeCaptionsArticle(title: string, subcategories: string[], guidelines?: string): Promise<ArticleContent>;
+  generateCaptionsTitle(keyword: string, count: number, guidelines?: string): Promise<string>;
+  generateCaptionsSubcategories(title: string, count: number, guidelines?: string): Promise<string[]>;
+  writeCaptionsArticle(title: string, subcategories: string[], count: number, guidelines?: string): Promise<ArticleContent>;
 }

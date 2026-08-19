@@ -342,26 +342,96 @@ ${JSON.stringify(outline)}`,
     return JSON.parse(response.choices[0].message.content || '{}') as ArticleContent;
   }
 
-  async generateCaptionsTitle(keyword: string, guidelines?: string): Promise<string> {
-    return `OpenAI Captions for ${keyword}`;
+  // ─── Captions Workflow Methods ──────────────────────────────────────────────
+
+  async generateCaptionsTitle(keyword: string, count: number, guidelines?: string): Promise<string> {
+    const ai = await this.getClient();
+    const prompt = `
+You are an expert social media content strategist. The user wants to write an article with approximately ${count} captions for the keyword: "${keyword}".
+Your task is to generate exactly ONE catchy title for this article (e.g., "${count}+ Weather Captions").
+Return the title as a plain string inside a JSON object: { "title": "..." }`;
+
+    const completion = await ai.chat.completions.create({
+      model: 'gpt-4o',
+      messages: [{ role: 'user', content: prompt }],
+      response_format: { type: 'json_object' },
+    });
+
+    const data = JSON.parse(completion.choices[0].message.content || '{}');
+    return data.title || `${count}+ ${keyword} Captions`;
   }
 
-  async generateCaptionsSubcategories(title: string, guidelines?: string): Promise<string[]> {
-    return ['OpenAI Subcategory 1'];
+  async generateCaptionsSubcategories(title: string, count: number, guidelines?: string): Promise<string[]> {
+    const ai = await this.getClient();
+    const prompt = `
+You are an expert content strategist. Based on the article title: "${title}", generate a list of relevant subcategories.
+The total number of captions needed is approximately ${count}. Based on this, suggest ${Math.ceil(count / 10)} distinct subcategories.
+
+Return strictly a JSON array of strings: [ "Subcategory 1", "Subcategory 2" ]`;
+
+    const completion = await ai.chat.completions.create({
+      model: 'gpt-4o',
+      messages: [{ role: 'user', content: prompt }],
+      response_format: { type: 'json_object' },
+    });
+
+    const data = JSON.parse(completion.choices[0].message.content || '[]');
+    return Array.isArray(data) ? data : (data.subcategories || []);
   }
 
-  async writeCaptionsArticle(title: string, subcategories: string[], guidelines?: string): Promise<ArticleContent> {
-    return {
-      title,
-      slug: 'openai-slug',
-      faq: [],
-      introduction: 'Intro',
-      sections: subcategories.map((s, i) => ({ position: i, heading: s, body: 'Body', imageDescription: 'img', altTextCandidate: 'alt' })),
-      conclusion: 'Conclusion',
-      metaTitle: 'Meta',
-      metaDescription: 'Desc',
-      suggestedTags: [],
-    };
+  async writeCaptionsArticle(title: string, subcategories: string[], count: number, guidelines?: string): Promise<ArticleContent> {
+    const ai = await this.getClient();
+    const prompt = `
+You are an expert social media copywriter. You are writing an article titled: "${title}".
+The article has the following subcategories: ${JSON.stringify(subcategories)}.
+
+Task:
+1. Write an engaging introduction (exactly 120-150 words).
+2. For EACH subcategory, generate 10 to 20 highly engaging, trendy captions. The total number of captions across all subcategories should be approximately ${count}. Format them nicely using HTML (e.g., <ul><li>Caption 1</li><li>Caption 2</li></ul>) inside the body of that section.
+3. Generate a highly detailed image prompt for EACH subcategory that visualizes one of the captions.
+4. Write a conclusion (exactly 50-60 words).
+
+${guidelines ? `Guidelines:\n${guidelines}\n` : ''}
+
+Return strictly a JSON object matching this structure:
+{
+  "title": "${title}",
+  "slug": "captions-slug",
+  "introduction": "Intro text...",
+  "sections": [
+    {
+      "position": 1,
+      "heading": "Subcategory 1",
+      "body": "<ul><li>Caption 1</li>...</ul>",
+      "imageDescription": "Detailed image prompt...",
+      "altTextCandidate": "Alt text..."
+    }
+  ],
+  "faq": [],
+  "conclusion": "Conclusion text...",
+  "metaTitle": "SEO title",
+  "metaDescription": "SEO meta description",
+  "suggestedTags": ["captions", "instagram"]
+}
+`;
+
+    const completion = await ai.chat.completions.create({
+      model: 'gpt-4o',
+      messages: [{ role: 'user', content: prompt }],
+      response_format: { type: 'json_object' },
+    });
+
+    const text = completion.choices[0].message.content || '{}';
+    try {
+      const startIndex = text.indexOf('{');
+      const endIndex = text.lastIndexOf('}');
+      if (startIndex !== -1 && endIndex !== -1) {
+        return JSON.parse(text.substring(startIndex, endIndex + 1)) as ArticleContent;
+      }
+      return JSON.parse(text) as ArticleContent;
+    } catch {
+      throw new Error("Failed to generate captions article content. Invalid JSON response from LLM.");
+    }
   }
 
   async generateImagePrompts(

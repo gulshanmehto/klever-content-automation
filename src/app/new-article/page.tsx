@@ -100,12 +100,12 @@ export default function NewArticlePage() {
           requestedIdeaCount,
           competitorUrls,
           targetCountry,
-          targetAudience,
-          customInstructions,
-          articleTone,
+          targetAudience: taskType === 'CAPTIONS' ? 'general' : targetAudience,
+          customInstructions: taskType === 'CAPTIONS' ? '' : customInstructions,
+          articleTone: taskType === 'CAPTIONS' ? 'casual friendly' : articleTone,
           writerProfile,
           category: category || undefined,
-          wordCountTarget: wordCountTarget || undefined,
+          wordCountTarget: taskType === 'CAPTIONS' ? undefined : (wordCountTarget || undefined),
           imageRatio,
           imageStyle,
           generateImages,
@@ -221,10 +221,10 @@ export default function NewArticlePage() {
               />
             </div>
 
-            {/* Number of Ideas */}
+            {/* Number of Ideas / Captions */}
             <div className="form-group">
               <label className="form-label" htmlFor="ideaCount">
-                Number of Ideas
+                {taskType === 'CAPTIONS' ? 'Number of Captions' : 'Number of Ideas'}
               </label>
               <input
                 id="ideaCount"
@@ -236,7 +236,9 @@ export default function NewArticlePage() {
                 max={200}
                 required
               />
-              <p className="form-helper">Recommended: 10–50 ideas</p>
+              <p className="form-helper">
+                {taskType === 'CAPTIONS' ? 'Recommended: 100–160 captions' : 'Recommended: 10–50 ideas'}
+              </p>
             </div>
 
             {/* Competitor URLs - Only for Standard Task */}
@@ -305,35 +307,39 @@ export default function NewArticlePage() {
                     placeholder="US"
                   />
                 </div>
-                <div className="form-group">
-                  <label className="form-label" htmlFor="audience">Target Audience</label>
-                  <input
-                    id="audience"
-                    type="text"
-                    className="form-input"
-                    value={targetAudience}
-                    onChange={(e) => setTargetAudience(e.target.value)}
-                    placeholder="general"
-                  />
-                </div>
+                {taskType === 'STANDARD' && (
+                  <div className="form-group">
+                    <label className="form-label" htmlFor="audience">Target Audience</label>
+                    <input
+                      id="audience"
+                      type="text"
+                      className="form-input"
+                      value={targetAudience}
+                      onChange={(e) => setTargetAudience(e.target.value)}
+                      placeholder="general"
+                    />
+                  </div>
+                )}
               </div>
 
               <div className="form-row">
-                <div className="form-group">
-                  <label className="form-label" htmlFor="tone">Article Tone</label>
-                  <select
-                    id="tone"
-                    className="form-select"
-                    value={articleTone}
-                    onChange={(e) => setArticleTone(e.target.value)}
-                  >
-                    <option value="informative">Informative</option>
-                    <option value="casual">Casual</option>
-                    <option value="professional">Professional</option>
-                    <option value="friendly">Friendly</option>
-                    <option value="authoritative">Authoritative</option>
-                  </select>
-                </div>
+                {taskType === 'STANDARD' && (
+                  <div className="form-group">
+                    <label className="form-label" htmlFor="tone">Article Tone</label>
+                    <select
+                      id="tone"
+                      className="form-select"
+                      value={articleTone}
+                      onChange={(e) => setArticleTone(e.target.value)}
+                    >
+                      <option value="informative">Informative</option>
+                      <option value="casual">Casual</option>
+                      <option value="professional">Professional</option>
+                      <option value="friendly">Friendly</option>
+                      <option value="authoritative">Authoritative</option>
+                    </select>
+                  </div>
+                )}
                 <div className="form-group">
                   <label className="form-label" htmlFor="category">Category</label>
                   <input
@@ -366,18 +372,20 @@ export default function NewArticlePage() {
               </div>
 
               <div className="form-row">
-                <div className="form-group">
-                  <label className="form-label" htmlFor="wordCount">Approx. Word Count</label>
-                  <input
-                    id="wordCount"
-                    type="number"
-                    className="form-input"
-                    value={wordCountTarget}
-                    onChange={(e) => setWordCountTarget(e.target.value ? parseInt(e.target.value, 10) : '')}
-                    placeholder="e.g., 3000"
-                    min={100}
-                  />
-                </div>
+                {taskType === 'STANDARD' && (
+                  <div className="form-group">
+                    <label className="form-label" htmlFor="wordCount">Approx. Word Count</label>
+                    <input
+                      id="wordCount"
+                      type="number"
+                      className="form-input"
+                      value={wordCountTarget}
+                      onChange={(e) => setWordCountTarget(e.target.value ? parseInt(e.target.value, 10) : '')}
+                      placeholder="e.g., 3000"
+                      min={100}
+                    />
+                  </div>
+                )}
                 <div className="form-group">
                   <label className="form-label" htmlFor="imgRatio">Image Aspect Ratio</label>
                   <select
@@ -395,23 +403,25 @@ export default function NewArticlePage() {
               </div>
               </div>
             {/* Custom Instructions */}
-            <div className="section-card" style={{ marginTop: 20 }}>
-              <div className="section-header" style={{ padding: '12px 16px', background: 'var(--bg-light)', borderBottom: '1px solid var(--border-light)', borderTopLeftRadius: 8, borderTopRightRadius: 8 }}>
-                <span className="section-heading" style={{ fontSize: '0.9rem', fontWeight: 600 }}>Additional Instructions (Optional)</span>
-              </div>
-              <div className="section-body" style={{ padding: 16 }}>
-                <div className="form-group mb-0">
-                  <label className="form-label text-muted" style={{ display: 'block', marginBottom: 8, fontSize: '0.85rem' }}>Provide any specific guidelines, tone requests, examples, or names to include in the article.</label>
-                  <textarea 
-                    className="form-input" 
-                    value={customInstructions} 
-                    onChange={(e) => setCustomInstructions(e.target.value)}
-                    style={{ minHeight: 100 }}
-                    placeholder="e.g. Include a mention of our CEO John Doe, keep it humorous, use British English..."
-                  />
+            {taskType === 'STANDARD' && (
+              <div className="section-card" style={{ marginTop: 20 }}>
+                <div className="section-header" style={{ padding: '12px 16px', background: 'var(--bg-light)', borderBottom: '1px solid var(--border-light)', borderTopLeftRadius: 8, borderTopRightRadius: 8 }}>
+                  <span className="section-heading" style={{ fontSize: '0.9rem', fontWeight: 600 }}>Additional Instructions (Optional)</span>
+                </div>
+                <div className="section-body" style={{ padding: 16 }}>
+                  <div className="form-group mb-0">
+                    <label className="form-label text-muted" style={{ display: 'block', marginBottom: 8, fontSize: '0.85rem' }}>Provide any specific guidelines, tone requests, examples, or names to include in the article.</label>
+                    <textarea 
+                      className="form-input" 
+                      value={customInstructions} 
+                      onChange={(e) => setCustomInstructions(e.target.value)}
+                      style={{ minHeight: 100 }}
+                      placeholder="e.g. Include a mention of our CEO John Doe, keep it humorous, use British English..."
+                    />
+                  </div>
                 </div>
               </div>
-            </div>
+            )}
 
             {/* Checkboxes */}
             <div style={{ borderTop: '1px solid var(--border-light)', paddingTop: 20, marginTop: 8 }}>

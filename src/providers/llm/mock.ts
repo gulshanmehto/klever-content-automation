@@ -137,25 +137,32 @@ export class MockLLMProvider implements LLMProvider {
     };
   }
 
-  async generateCaptionsTitle(keyword: string, guidelines?: string): Promise<string> {
-    return `Mock Captions for ${keyword}`;
+  // ─── Captions Workflow Methods ──────────────────────────────────────────────
+  async generateCaptionsTitle(keyword: string, count: number, guidelines?: string): Promise<string> {
+    return `${count}+ ${keyword} Captions Mock Title`;
   }
 
-  async generateCaptionsSubcategories(title: string, guidelines?: string): Promise<string[]> {
+  async generateCaptionsSubcategories(title: string, count: number, guidelines?: string): Promise<string[]> {
     return ['Mock Subcategory 1', 'Mock Subcategory 2'];
   }
 
-  async writeCaptionsArticle(title: string, subcategories: string[], guidelines?: string): Promise<ArticleContent> {
+  async writeCaptionsArticle(title: string, subcategories: string[], count: number, guidelines?: string): Promise<ArticleContent> {
     return {
       title,
-      slug: 'mock-slug',
-      faq: [],
+      slug: 'mock-captions-slug',
       introduction: 'Mock Intro',
-      sections: subcategories.map((s, i) => ({ position: i, heading: s, body: 'Mock Body', imageDescription: 'img', altTextCandidate: 'alt' })),
+      sections: subcategories.map((s, i) => ({
+        position: i + 1,
+        heading: s,
+        body: '<ul><li>Mock Caption 1</li><li>Mock Caption 2</li></ul>',
+        imageDescription: 'Mock image desc',
+        altTextCandidate: 'Mock alt text'
+      })),
+      faq: [],
       conclusion: 'Mock Conclusion',
       metaTitle: 'Mock Meta',
-      metaDescription: 'Mock Description',
-      suggestedTags: ['mock', 'tags'],
+      metaDescription: 'Mock Desc',
+      suggestedTags: ['mock']
     };
   }
 

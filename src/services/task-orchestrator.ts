@@ -834,7 +834,7 @@ export class TaskOrchestrator {
     if (!task) throw new Error('Task not found');
 
     const llm = await this.getLLM();
-    const title = await llm.generateCaptionsTitle(task.topic, task.customInstructions || undefined);
+    const title = await llm.generateCaptionsTitle(task.topic, task.requestedIdeaCount, task.customInstructions || undefined);
 
     await prisma.articleTask.update({
       where: { id: this.taskId },
@@ -854,7 +854,7 @@ export class TaskOrchestrator {
     if (!task) throw new Error('Task not found');
 
     const llm = await this.getLLM();
-    const subcategories = await llm.generateCaptionsSubcategories(task.articleTitle || task.topic, task.customInstructions || undefined);
+    const subcategories = await llm.generateCaptionsSubcategories(task.articleTitle || task.topic, task.requestedIdeaCount, task.customInstructions || undefined);
 
     // Clear existing sections just in case
     await prisma.articleSection.deleteMany({ where: { articleTaskId: this.taskId } });
@@ -888,7 +888,7 @@ export class TaskOrchestrator {
 
     const subcategories = task.articleSections.map(s => s.heading);
     const llm = await this.getLLM();
-    const article = await llm.writeCaptionsArticle(task.articleTitle || task.topic, subcategories, task.customInstructions || undefined);
+    const article = await llm.writeCaptionsArticle(task.articleTitle || task.topic, subcategories, task.requestedIdeaCount, task.customInstructions || undefined);
 
     // Update main task
     await prisma.articleTask.update({
