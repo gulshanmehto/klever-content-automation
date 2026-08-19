@@ -338,15 +338,15 @@ ${JSON.stringify(article)}`;
     };
   }
 
-  async generateCaptionsTitle(keyword: string, guidelines?: string): Promise<string> {
+  async generateCaptionsTitle(keyword: string, count: number, guidelines?: string): Promise<string> {
     return `Pollinations Captions for ${keyword}`;
   }
 
-  async generateCaptionsSubcategories(title: string, guidelines?: string): Promise<string[]> {
+  async generateCaptionsSubcategories(title: string, count: number, guidelines?: string): Promise<string[]> {
     return ['Pollinations Subcategory 1'];
   }
 
-  async writeCaptionsArticle(title: string, subcategories: string[], guidelines?: string): Promise<any> {
+  async writeCaptionsArticle(title: string, subcategories: string[], count: number, guidelines?: string): Promise<any> {
     return {
       title,
       slug: 'pollinations-slug',
