@@ -129,7 +129,7 @@ const createTaskSchema = z.object({
   websiteId: z.string().min(1, 'Website is required'),
   topic: z.string().min(1, 'Topic is required').max(500),
   requestedIdeaCount: z.number().int().min(1).max(200),
-  competitorUrls: z.array(z.string().url()).min(1).max(3),
+  competitorUrls: z.array(z.string().url()).max(3).default([]),
   targetCountry: z.string().optional(),
   targetAudience: z.string().optional(),
   customInstructions: z.string().optional(),
